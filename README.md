@@ -2,6 +2,8 @@
 
 A centralized gateway for coordinating multi-source, multi-target backup operations, with a focus on orchestrating the lifecycle of target nodes (Wake-on-LAN and remote shutdown) while following best practices for security, observability, and maintainability.
 
+The refined initial production scope, architecture, user stories, and implementation plan live under [`docs/pm`](docs/pm/README.md).
+
 ## Background
 
 We are currently using [BorgBackup](https://borgbackup.readthedocs.io/en/stable/) for deduplicated remote backups with the [Cyborg Workflow Engine](https://github.com/frederik-hoeft/cyborg) as the orchestrator. Currently, backups are initiated by a cron job on the source server, which invokes the cyborg workflow to:
@@ -37,13 +39,13 @@ To address these issues, we propose implementing a "Backup Gateway" that acts as
 - **Lifecycle API**: expose a secure, authenticated API for initiating and terminating backup jobs, which can be called by source servers or other orchestrators.
 - **State Management**: maintain the state of target nodes, performing Wake-on-LAN and remote shutdown operations as needed to minimize idle uptime, reduce attack surface, and extend node hardware lifespan.
 - **Synchronization**: handle concurrent backup initiations and terminations, ensuring that nodes are not shutdown while concurrently being used for another backup job.
-- **Configuration Management**: allow for flexible, JSON/YAML-based configuration of target nodes, including their network addresses, Wake-on-LAN settings, and shutdown commands.
+- **Configuration Management**: use validated ASP.NET Core configuration for target network addresses, Wake-on-LAN settings, readiness checks, and fixed authenticated shutdown settings.
 
 ### Non-Functional Requirements
 
 - **Audit Logging**: log all backup operations, including initiations, terminations, and node state changes for auditing and troubleshooting purposes.
-- **Metrics and Monitoring**: since target nodes are only available on demand, the Backup Gateway should act as a central proxy for monitoring node health (S.M.A.R.T. disk data, **free disk space**, startup/shutdown times, etc.). It should essentially act as a proxy gateway for prometheus metrics, which can be scraped by the existing observability stack. The gateway cache should be updated on demand (whenever a target node is woken up for a backup job).
-- **Containerization**: the Backup Gateway should be designed to run in a containerized environment (e.g., Docker, Kubernetes) for ease of deployment and scalability.
+- **Metrics and Monitoring**: expose Prometheus metrics for gateway health, leases, target lifecycle state, and startup/shutdown outcomes. Cached proxying of target S.M.A.R.T., free-space, or arbitrary target metrics is a future capability.
+- **Containerization**: deploy the initial single-instance gateway and its PostgreSQL store with Docker. Horizontal gateway replicas require distributed coordination and are out of scope for the initial release.
 
 ### Out of Scope
 
@@ -55,14 +57,19 @@ In its initial implementation, **the Backup Gateway will explicitly not handle**
 
 ### Technical Implementation Requirements
 
-- ASP.NET Core Web API on .NET 10+ for the API implementation, leveraging its built-in support for authentication, logging, and dependency injection.
-- ASP.NET Core Identity for authentication and authorization, possibly using SQLite as a lightweight backing store for source server credentials and permissions.
+- ASP.NET Core Web API on .NET 10 / C# 14.
+- PostgreSQL via Npgsql/EF Core, including ASP.NET Core Identity for authentication and authorization state.
+- WKG ASP.NET Core transaction management and WKG Entity Framework Core model discovery/mapping conventions, following `wkg-framework-demo`.
+- Modern `.slnx` solution format and the project coding conventions from `frederik-hoeft/csharp-syle-guide`.
 
-### Open Questions
+### Client-side aborts
 
-- **Client-side aborts**: how should the Backup Gateway handle cases where a source server initiates a backup job but fails to complete it (e.g., due to a crash or network failure)? Should the Backup Gateway implement a timeout mechanism to automatically terminate backup jobs that have been idle for too long, and if so, how would a secure timeout mechanism be implemented to prevent accidental termination of active backup jobs?
+Client liveness is tracked through lease heartbeats, but stale leases are never released automatically. Because backup traffic bypasses the gateway, a missing heartbeat cannot prove that a backup has stopped. A stale lease therefore continues to prevent shutdown until the client releases it or an administrator explicitly force-releases it.
 
 ### Future Considerations
+
+- **Target telemetry proxying**: cache target S.M.A.R.T., free-space, and other on-demand metrics after the correctness-critical lifecycle coordinator is stable.
+- **Additional configuration providers**: add YAML-specific configuration support if it provides operational value beyond the standard JSON/environment-variable configuration pipeline.
 
 - **Repository key backup**: in the future, the Backup Gateway could also be extended to securely store encrypted borg repository keys and repository metadata.
 - **Target node discovery**: the Backup Gateway could act as a central registry for target nodes, allowing source servers to query available targets and their capabilities (e.g., available disk space, supported backup types, etc.) before initiating backup jobs. This would, however, either the source servers to reuse the same repository passphrase for all target nodes, or introduce key management challlenges if different passphrases are used for different target nodes.
