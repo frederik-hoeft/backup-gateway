@@ -137,8 +137,6 @@ The initial release exposes gateway-centric metrics sufficient to operate the co
 - authentication/authorization and API request metrics where safe and useful;
 - database and application health signals.
 
-Proxying cached target S.M.A.R.T. data, free-space information, or arbitrary target Prometheus metrics is deferred until the lifecycle coordinator is stable.
-
 ## Technology and implementation constraints
 
 - .NET 10 and C# 14.
@@ -162,6 +160,5 @@ Proxying cached target S.M.A.R.T. data, free-space information, or arbitrary tar
 - web UI;
 - runtime target discovery;
 - runtime target configuration CRUD;
-- cached S.M.A.R.T./disk-space/target-metrics proxying;
 - generalized remote command execution;
 - YAML-specific configuration support.

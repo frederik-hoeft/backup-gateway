@@ -1,7 +1,7 @@
 # Task 02: Persistence and Domain Model
 
 Branch: `feature/02-persistence-domain`
-Parent: `feature/01-project-foundation`
+Parent: `feature/01a-remove-target-metric-proxying`
 
 ## Goal
 

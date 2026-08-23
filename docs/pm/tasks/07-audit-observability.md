@@ -5,7 +5,7 @@ Parent: `feature/06-lifecycle-transports`
 
 ## Goal
 
-Make lifecycle and security behavior explainable in production without turning observability into a general target-monitoring subsystem.
+Make lifecycle and security behavior explainable in production while keeping target-host monitoring in the existing Prometheus deployment.
 
 ## Work
 
@@ -24,4 +24,3 @@ Make lifecycle and security behavior explainable in production without turning o
 - metrics use bounded-cardinality labels;
 - health/readiness behavior distinguishes process liveness from ability to serve lifecycle requests;
 - secret-scanning tests/log assertions cover representative authentication and SSH failures;
-- target S.M.A.R.T./free-space proxying is not introduced by this task.

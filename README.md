@@ -44,7 +44,7 @@ To address these issues, we propose implementing a "Backup Gateway" that acts as
 ### Non-Functional Requirements
 
 - **Audit Logging**: log all backup operations, including initiations, terminations, and node state changes for auditing and troubleshooting purposes.
-- **Metrics and Monitoring**: expose Prometheus metrics for gateway health, leases, target lifecycle state, and startup/shutdown outcomes. Cached proxying of target S.M.A.R.T., free-space, or arbitrary target metrics is a future capability.
+- **Metrics and Monitoring**: expose Prometheus metrics for gateway health, leases, target lifecycle state, and startup/shutdown outcomes.
 - **Containerization**: deploy the initial single-instance gateway and its PostgreSQL store with Docker. Horizontal gateway replicas require distributed coordination and are out of scope for the initial release.
 
 ### Out of Scope
@@ -98,7 +98,6 @@ Client liveness is tracked through lease heartbeats, but stale leases are never 
 
 ### Future Considerations
 
-- **Target telemetry proxying**: cache target S.M.A.R.T., free-space, and other on-demand metrics after the correctness-critical lifecycle coordinator is stable.
 - **Additional configuration providers**: add YAML-specific configuration support if it provides operational value beyond the standard JSON/environment-variable configuration pipeline.
 
 - **Repository key backup**: in the future, the Backup Gateway could also be extended to securely store encrypted borg repository keys and repository metadata.

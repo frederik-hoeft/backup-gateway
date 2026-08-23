@@ -5,6 +5,7 @@ Each task corresponds to an incremental feature branch. The branches are stacked
 | Task | Branch | Primary outcome |
 | --- | --- | --- |
 | [01](01-project-foundation.md) | `feature/01-project-foundation` | Modern .NET solution and development/runtime baseline |
+| Scope cleanup | `feature/01a-remove-target-metric-proxying` | Keep target monitoring in the existing Prometheus deployment |
 | [02](02-persistence-domain.md) | `feature/02-persistence-domain` | PostgreSQL/Identity persistence and explicit WKG EF model |
 | [03](03-authentication-authorization.md) | `feature/03-authentication-authorization` | JWT service identities, admin provisioning, target grants |
 | [04](04-target-configuration.md) | `feature/04-target-configuration` | Validated target/WOL/readiness/SSH configuration |

@@ -143,7 +143,7 @@ After sending Wake-on-LAN, the coordinator waits for the configured readiness pr
 
 The initial readiness signal is a bounded network probe for the service required to begin backup access, typically the target SSH endpoint. Probe intervals and overall timeout are target configuration.
 
-Readiness is intentionally distinct from broad health/telemetry collection. A target can be `Online` for lifecycle purposes without the gateway implementing a general monitoring proxy.
+Readiness is a lifecycle signal only. A target is `Online` when the service required to begin backup access is reachable; broader host monitoring remains the responsibility of the existing Prometheus deployment.
 
 ### Shutdown
 
@@ -172,5 +172,3 @@ Reconciliation is level-triggered rather than dependent on a one-shot in-memory 
 ## Observability boundary
 
 Prometheus metrics describe the gateway and the lifecycle state it directly owns. Durable audit events answer who requested or forced a security-sensitive change. Structured logs explain transient failures and include correlation identifiers that link API requests, reconciliation, and audit records.
-
-Target S.M.A.R.T. data, free-space caching, and generic target metrics proxying remain separate future capabilities so they do not complicate the correctness-critical lease coordinator.
