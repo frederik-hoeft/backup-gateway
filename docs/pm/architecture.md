@@ -48,9 +48,9 @@ If the desired state changes during a lifecycle transition, the coordinator conv
 
 ## Coordination model
 
-The initial deployment supports one active application instance. Within that instance, all lifecycle reconciliation for the same target is serialized by a keyed asynchronous coordinator. Different targets may be reconciled concurrently.
+The initial deployment supports one active application instance. Startup acquires a dedicated PostgreSQL advisory lock on a non-pooled connection and refuses to start if another gateway already holds it; a background monitor stops the process if that session can no longer be verified. This is a deployment guard, not distributed fencing semantics, so horizontal active replicas remain unsupported.
 
-Durable state is still committed to PostgreSQL before correctness depends on it. In-process serialization is therefore an execution-order mechanism, not the authoritative state store.
+Within the active instance, all lifecycle reconciliation for the same target is serialized by a keyed asynchronous coordinator. Different targets may be reconciled concurrently. Durable state is still committed to PostgreSQL before correctness depends on it. In-process serialization is therefore an execution-order mechanism, not the authoritative state store.
 
 A target reconciliation pass follows this shape:
 

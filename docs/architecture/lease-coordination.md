@@ -41,7 +41,7 @@ Heartbeat timestamps, the currently observed target state, and previous lifecycl
 
 ## Concurrency boundaries
 
-The initial deployment supports one active gateway process. Within that process, short lease mutations are serialized per target so concurrent acquisitions/releases cannot race the transition from the last held lease. Operations for different targets remain independent.
+The initial deployment supports one active gateway process, enforced by the PostgreSQL advisory-lock deployment guard. Within that process, short lease mutations are serialized per target so concurrent acquisitions/releases cannot race the transition from the last held lease. Operations for different targets remain independent. The advisory lock prevents accidental concurrent instances but is not a substitute for distributed fencing or supported active-active replicas.
 
 Lifecycle reconciliation uses a separate per-target serializer. This is intentional: network operations may take seconds or minutes and must not block a client from durably acquiring or releasing a lease. Lease mutations commit their database transaction first and then enqueue level-triggered reconciliation. Reconciliation opens its own dependency-injection scope and re-reads durable desired state.
 

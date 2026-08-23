@@ -4,7 +4,7 @@ namespace BackupGateway.Web.Services.Lifecycle;
 
 internal sealed class PeriodicTargetReconciliationService(
     ITargetCatalog targetCatalog,
-    ITargetReconciliationQueue reconciliationQueue,
+    ITargetReconciliationScheduler reconciliationQueue,
     LifecycleOptions options,
     TimeProvider timeProvider) : BackgroundService
 {

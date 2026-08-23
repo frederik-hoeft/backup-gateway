@@ -19,6 +19,15 @@ services:
     volumes:
       - ${BACKUP_GATEWAY_JWT_KEY_FILE:-./secrets/jwt-signing-key.pem}:/run/secrets/backup-gateway-jwt.pem:ro
       - ${BACKUP_GATEWAY_BOOTSTRAP_CREDENTIAL_FILE:-./secrets/bootstrap-admin-credential}:/run/secrets/backup-gateway-bootstrap-admin:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    init: true
     restart: unless-stopped
 
   postgres:

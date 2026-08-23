@@ -20,8 +20,8 @@ public sealed class DiagnosticsController(
     LeaseOptions leaseOptions,
     TimeProvider timeProvider) : ControllerBase
 {
-    private const int MAXIMUM_LEASE_DETAILS = 100;
-    private const int MAXIMUM_AUDIT_EVENTS = 100;
+    private const int MaximumLeaseDetails = 100;
+    private const int MaximumAuditEvents = 100;
 
     [HttpGet("targets/{targetId}")]
     public Task<IActionResult> GetTargetAsync([FromRoute] string targetId, CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ public sealed class DiagnosticsController(
 
             DateTimeOffset now = timeProvider.GetUtcNow();
             IReadOnlyList<HeldLeaseDiagnostic> leaseDetails = [.. leases
-                .Take(MAXIMUM_LEASE_DETAILS)
+                .Take(MaximumLeaseDetails)
                 .Select(lease => new HeldLeaseDiagnostic(
                     lease.Id,
                     lease.ClientId,
@@ -56,7 +56,7 @@ public sealed class DiagnosticsController(
                 observation?.ObservedAtUtc,
                 leases.Count,
                 leases.Count(lease => now - lease.LastHeartbeatAtUtc > leaseOptions.StaleAfter),
-                leases.Count > MAXIMUM_LEASE_DETAILS,
+                leases.Count > MaximumLeaseDetails,
                 leaseDetails);
             return Ok(response);
         }, cancellationToken);
@@ -68,7 +68,7 @@ public sealed class DiagnosticsController(
         [FromQuery] int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        if (limit is < 1 or > MAXIMUM_AUDIT_EVENTS || targetId is { Length: > 128 })
+        if (limit is < 1 or > MaximumAuditEvents || targetId is { Length: > 128 })
         {
             return Task.FromResult<IActionResult>(BadRequest());
         }

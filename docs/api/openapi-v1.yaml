@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: Backup Gateway API
+  version: v1
+  description: >-
+    Stable service-to-service API for acquiring durable target leases and
+    administering Backup Gateway. Backup traffic itself never passes through
+    this API.
+servers:
+  - url: /
+tags:
+  - name: Authentication
+  - name: Leases
+  - name: Administration
+  - name: Diagnostics
+paths:
+  /api/v1/auth/token:
+    post:
+      tags: [Authentication]
+      operationId: issueToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Short-lived bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request body.
+        '401':
+          description: Invalid service identity or credential.
+  /api/v1/targets/{targetId}/leases/{leaseId}:
+    parameters:
+      - $ref: '#/components/parameters/TargetId'
+      - $ref: '#/components/parameters/LeaseId'
+    put:
+      tags: [Leases]
+      operationId: acquireLease
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Existing idempotent lease owned by this client for this target.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseResponse'
+        '201':
+          description: Lease created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseResponse'
+        '401': { description: Authentication required. }
+        '403': { description: Client has no current grant for the target. }
+        '409': { description: Lease UUID is already bound to a different client or target. }
+    get:
+      tags: [Leases]
+      operationId: getLease
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current durable lease and target observation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseResponse'
+        '401': { description: Authentication required. }
+        '403': { description: Client has no current grant for the target. }
+        '404': { description: No matching lease owned by this client. }
+    delete:
+      tags: [Leases]
+      operationId: releaseLease
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Lease released, or was already released. }
+        '401': { description: Authentication required. }
+        '403': { description: Client has no current grant for the target. }
+        '404': { description: No matching lease owned by this client. }
+  /api/v1/targets/{targetId}/leases/{leaseId}/heartbeat:
+    parameters:
+      - $ref: '#/components/parameters/TargetId'
+      - $ref: '#/components/parameters/LeaseId'
+    post:
+      tags: [Leases]
+      operationId: heartbeatLease
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Heartbeat updated on a held lease.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseResponse'
+        '401': { description: Authentication required. }
+        '403': { description: Client has no current grant for the target. }
+        '404': { description: No matching lease owned by this client. }
+        '409':
+          description: Lease exists but is no longer held; current lease state is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseResponse'
+  /api/v1/admin/clients:
+    post:
+      tags: [Administration]
+      operationId: createClient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+      responses:
+        '201':
+          description: Backup client created. Credential is returned once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientCredentialResponse'
+        '400': { description: Invalid username. }
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '409': { description: Client username already exists. }
+  /api/v1/admin/clients/{clientId}/credential:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [Administration]
+      operationId: rotateClientCredential
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Credential rotated and returned once; existing JWTs become invalid after security-stamp validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientCredentialResponse'
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '404': { description: Backup client not found. }
+  /api/v1/admin/clients/{clientId}/grants/{targetId}:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+      - $ref: '#/components/parameters/TargetId'
+    put:
+      tags: [Administration]
+      operationId: grantTarget
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Grant exists. }
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '404': { description: Client or configured target not found. }
+    delete:
+      tags: [Administration]
+      operationId: revokeTarget
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Grant does not exist after this request. }
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '404': { description: Configured target not found. }
+  /api/v1/admin/targets/{targetId}/leases/{leaseId}/force-release:
+    parameters:
+      - $ref: '#/components/parameters/TargetId'
+      - $ref: '#/components/parameters/LeaseId'
+    post:
+      tags: [Administration]
+      operationId: forceReleaseLease
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Lease is no longer held. }
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '404': { description: Lease not found for the target. }
+  /api/v1/admin/diagnostics/targets/{targetId}:
+    parameters:
+      - $ref: '#/components/parameters/TargetId'
+    get:
+      tags: [Diagnostics]
+      operationId: getTargetDiagnostics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bounded operational target diagnostics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetDiagnosticsResponse'
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+        '404': { description: Configured target not found. }
+  /api/v1/admin/diagnostics/audit:
+    get:
+      tags: [Diagnostics]
+      operationId: getRecentAudit
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: targetId
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Recent append-only audit records, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEventResponse'
+        '400': { description: Invalid query bounds. }
+        '401': { description: Authentication required. }
+        '403': { description: Administrator role required. }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TargetId:
+      name: targetId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$'
+    LeaseId:
+      name: leaseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [username, credential]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 128 }
+        credential: { type: string, minLength: 1, maxLength: 1024 }
+    TokenResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresAtUtc]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAtUtc: { type: string, format: date-time }
+    LeaseResponse:
+      type: object
+      additionalProperties: false
+      required: [leaseId, targetId, state, createdAtUtc, lastHeartbeatAtUtc, isStale, targetState]
+      properties:
+        leaseId: { type: string, format: uuid }
+        targetId: { type: string }
+        state: { $ref: '#/components/schemas/BackupLeaseState' }
+        createdAtUtc: { type: string, format: date-time }
+        lastHeartbeatAtUtc: { type: string, format: date-time }
+        releasedAtUtc: { type: [string, 'null'], format: date-time }
+        isStale: { type: boolean }
+        targetState: { $ref: '#/components/schemas/TargetLifecycleState' }
+        targetObservedAtUtc: { type: [string, 'null'], format: date-time }
+    BackupLeaseState:
+      type: string
+      enum: [Unknown, Held, Released, ForceReleased]
+    TargetLifecycleState:
+      type: string
+      enum: [Unknown, Offline, Starting, Online, Stopping, Faulted]
+    CreateClientRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 128 }
+    ClientCredentialResponse:
+      type: object
+      additionalProperties: false
+      required: [clientId, username, credential]
+      properties:
+        clientId: { type: string, format: uuid }
+        username: { type: string }
+        credential: { type: string, readOnly: true }
+    HeldLeaseDiagnostic:
+      type: object
+      additionalProperties: false
+      required: [leaseId, clientId, lastHeartbeatAtUtc, isStale]
+      properties:
+        leaseId: { type: string, format: uuid }
+        clientId: { type: string, format: uuid }
+        lastHeartbeatAtUtc: { type: string, format: date-time }
+        isStale: { type: boolean }
+    TargetDiagnosticsResponse:
+      type: object
+      additionalProperties: false
+      required: [targetId, state, heldLeaseCount, staleLeaseCount, leasesTruncated, leases]
+      properties:
+        targetId: { type: string }
+        state: { $ref: '#/components/schemas/TargetLifecycleState' }
+        observedAtUtc: { type: [string, 'null'], format: date-time }
+        heldLeaseCount: { type: integer, minimum: 0 }
+        staleLeaseCount: { type: integer, minimum: 0 }
+        leasesTruncated: { type: boolean }
+        leases:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/HeldLeaseDiagnostic' }
+    AuditEventResponse:
+      type: object
+      additionalProperties: false
+      required: [id, occurredAtUtc, correlationId, eventType, outcome]
+      properties:
+        id: { type: string, format: uuid }
+        occurredAtUtc: { type: string, format: date-time }
+        correlationId: { type: string, format: uuid }
+        actorClientId: { type: [string, 'null'], format: uuid }
+        subjectClientId: { type: [string, 'null'], format: uuid }
+        targetId: { type: [string, 'null'] }
+        leaseId: { type: [string, 'null'], format: uuid }
+        eventType: { type: string, maxLength: 64 }
+        outcome: { type: string, maxLength: 32 }
+        details: { type: [string, 'null'], maxLength: 1024 }

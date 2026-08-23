@@ -79,7 +79,7 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`, readiness at `/health/ready`, and Prometheus metrics at `/metrics`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md), the durable lease/concurrency contract in [`docs/architecture/lease-coordination.md`](docs/architecture/lease-coordination.md), lifecycle execution in [`docs/architecture/lifecycle.md`](docs/architecture/lifecycle.md), and the audit/telemetry boundary in [`docs/architecture/observability.md`](docs/architecture/observability.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
+The liveness endpoint is available at `/health/live`, readiness at `/health/ready`, and Prometheus metrics at `/metrics`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md), the durable lease/concurrency contract in [`docs/architecture/lease-coordination.md`](docs/architecture/lease-coordination.md), lifecycle execution in [`docs/architecture/lifecycle.md`](docs/architecture/lifecycle.md), and the audit/telemetry boundary in [`docs/architecture/observability.md`](docs/architecture/observability.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md). The checked-in [API v1 contract](docs/api/README.md) and [production deployment guide](docs/deployment.md) define the external integration and operational boundaries.
 
 ### Integration tests
 
@@ -95,8 +95,13 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out secrets/jwt-si
 openssl rand -base64 32 > secrets/bootstrap-admin-credential
 printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -base64 32)" > .env
 chmod 600 secrets/* .env
+# The image's non-root app user must be able to read bind-mounted files. Prefer an ACL
+# over widening the host-side mode when your filesystem supports it.
+setfacl -m u:1654:r secrets/jwt-signing-key.pem secrets/bootstrap-admin-credential
 docker compose up --build
 ```
+
+The official .NET Linux image currently uses UID `1654` for its `app` user. If your deployment uses a different image/user mapping, inspect the built image and grant that UID read access instead. `setfacl` is only a development example; production secret provisioning should grant the container identity the minimum required read permission without making private keys group/world-readable.
 
 The first start creates the `admin` Identity user from `secrets/bootstrap-admin-credential`. The bootstrap secret cannot replace an existing administrator once Identity contains users. The JWT private key remains mounted read-only because it is required for token issuance and validation.
 

@@ -1,6 +1,6 @@
 namespace BackupGateway.Web.Services.Lifecycle;
 
-public interface ITargetReconciliationQueue
+public interface ITargetReconciliationScheduler
 {
     void Enqueue(string targetId);
 }

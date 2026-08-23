@@ -6,7 +6,7 @@ namespace BackupGateway.Web.Services.Targets;
 
 internal sealed class TargetCatalog : ITargetCatalog
 {
-    private const string SECTION_NAME = "Targets";
+    private const string SectionName = "Targets";
     private readonly FrozenDictionary<string, TargetDefinition> _targets;
 
     private TargetCatalog(IEnumerable<TargetDefinition> targets)
@@ -29,7 +29,7 @@ internal sealed class TargetCatalog : ITargetCatalog
         ArgumentNullException.ThrowIfNull(configuration);
 
         List<TargetDefinition> targets = [];
-        foreach (IConfigurationSection targetSection in configuration.GetSection(SECTION_NAME).GetChildren())
+        foreach (IConfigurationSection targetSection in configuration.GetSection(SectionName).GetChildren())
         {
             string targetId = targetSection.Key;
             ValidateTargetId(targetId);
@@ -219,7 +219,7 @@ internal sealed class TargetCatalog : ITargetCatalog
         string message,
         Exception? innerException = null)
     {
-        string path = field is null ? $"{SECTION_NAME}:{targetId}" : $"{SECTION_NAME}:{targetId}:{field}";
+        string path = field is null ? $"{SectionName}:{targetId}" : $"{SectionName}:{targetId}:{field}";
         return new InvalidOperationException($"Invalid target configuration at '{path}': {message}.", innerException);
     }
 

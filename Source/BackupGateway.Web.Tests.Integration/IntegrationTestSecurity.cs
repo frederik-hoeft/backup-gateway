@@ -33,6 +33,27 @@ internal static class IntegrationTestSecurity
         configuration["Auth:BootstrapAdministrator:CredentialFile"] = _bootstrapCredentialFile;
     }
 
+    public static void ApplyTarget(IConfiguration configuration)
+    {
+        configuration["Targets:backup-1:Host"] = "127.0.0.1";
+        configuration["Targets:backup-1:WakeOnLan:MacAddress"] = "02:11:22:33:44:55";
+        configuration["Targets:backup-1:WakeOnLan:Destination"] = "127.0.0.1";
+        configuration["Targets:backup-1:WakeOnLan:Port"] = "9";
+        configuration["Targets:backup-1:Readiness:Port"] = "22";
+        configuration["Targets:backup-1:Readiness:ConnectTimeout"] = "00:00:01";
+        configuration["Targets:backup-1:Readiness:RetryInterval"] = "00:00:01";
+        configuration["Targets:backup-1:Readiness:OverallTimeout"] = "00:00:05";
+        configuration["Targets:backup-1:Shutdown:Port"] = "22";
+        configuration["Targets:backup-1:Shutdown:Username"] = "backup-gateway";
+        configuration["Targets:backup-1:Shutdown:Command"] = "sudo /sbin/shutdown -h now";
+        configuration["Targets:backup-1:Shutdown:PrivateKeyFile"] = _jwtKeyFile;
+        configuration["Targets:backup-1:Shutdown:HostKeyFingerprint"] = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        configuration["Targets:backup-1:Shutdown:ConnectTimeout"] = "00:00:01";
+        configuration["Targets:backup-1:Shutdown:CommandTimeout"] = "00:00:05";
+        configuration["Targets:backup-1:Shutdown:OfflineTimeout"] = "00:00:05";
+        configuration["Targets:backup-1:Shutdown:RetryInterval"] = "00:00:01";
+    }
+
     public static void Apply(IWebHostBuilder builder)
     {
         builder.UseSetting("Auth:Jwt:Issuer", "backup-gateway-integration-tests");

@@ -20,12 +20,16 @@ internal static class IntegrationTestDatabase
         return connectionString!;
     }
 
-    public static async Task<ServiceProvider> CreateServiceProviderAsync()
+    public static async Task<ServiceProvider> CreateServiceProviderAsync(bool includeTarget = false)
     {
         ServiceCollection services = new();
         using ConfigurationManager configuration = new();
         configuration["ConnectionStrings:DatabaseConnection"] = RequireConnectionString();
         IntegrationTestSecurity.Apply(configuration);
+        if (includeTarget)
+        {
+            IntegrationTestSecurity.ApplyTarget(configuration);
+        }
         await Startup.ConfigureServicesAsync(services, configuration);
         return services.BuildServiceProvider();
     }

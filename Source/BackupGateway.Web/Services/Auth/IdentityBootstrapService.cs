@@ -109,7 +109,7 @@ internal sealed partial class IdentityBootstrapService(
 
     private sealed class BootstrapAdministratorOptions
     {
-        private const string SECTION_NAME = "Auth:BootstrapAdministrator";
+        private const string SectionName = "Auth:BootstrapAdministrator";
 
         public required string Username { get; init; }
 
@@ -117,16 +117,16 @@ internal sealed partial class IdentityBootstrapService(
 
         public static BootstrapAdministratorOptions FromConfiguration(IConfiguration configuration)
         {
-            BootstrapAdministratorOptions options = configuration.GetSection(SECTION_NAME).Get<BootstrapAdministratorOptions>()
+            BootstrapAdministratorOptions options = configuration.GetSection(SectionName).Get<BootstrapAdministratorOptions>()
                 ?? throw new InvalidOperationException(
-                    $"{SECTION_NAME} configuration is required while the Identity store is empty.");
+                    $"{SectionName} configuration is required while the Identity store is empty.");
             if (string.IsNullOrWhiteSpace(options.Username) || options.Username.Length > 128)
             {
-                throw new InvalidOperationException($"{SECTION_NAME}:Username must contain between 1 and 128 characters.");
+                throw new InvalidOperationException($"{SectionName}:Username must contain between 1 and 128 characters.");
             }
             if (string.IsNullOrWhiteSpace(options.CredentialFile))
             {
-                throw new InvalidOperationException($"{SECTION_NAME}:CredentialFile is required.");
+                throw new InvalidOperationException($"{SectionName}:CredentialFile is required.");
             }
             return options;
         }

@@ -14,7 +14,7 @@ public sealed class PersistenceTests
     public Task ResetDatabaseAsync() => IntegrationTestDatabase.ResetAsync();
 
     [TestMethod]
-    public async Task TargetGrant_DuplicateClientTarget_IsRejectedAsync()
+    public async Task DuplicateClientTargetGrantIsRejectedAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
@@ -38,7 +38,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task ClientDeletion_CascadesGrantButPreservesLeaseAsync()
+    public async Task ClientDeletionCascadesGrantButPreservesLeaseAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
@@ -72,7 +72,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task BackupLease_ReusedIdWithDifferentIdentity_IsRejectedAsync()
+    public async Task ReusedBackupLeaseIdWithDifferentIdentityIsRejectedAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
@@ -99,7 +99,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task TargetRuntimeObservation_DuplicateTarget_IsRejectedAsync()
+    public async Task DuplicateTargetRuntimeObservationIsRejectedAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
@@ -115,7 +115,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task AuditEvent_UpdateAndDelete_AreRejectedAsync()
+    public async Task AuditEventUpdateAndDeleteAreRejectedAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
@@ -139,7 +139,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task TransactionService_CommitAndRollback_ControlPersistenceAsync()
+    public async Task TransactionServiceCommitAndRollbackControlPersistenceAsync()
     {
         await using ServiceProvider provider = await IntegrationTestDatabase.CreateServiceProviderAsync();
         ITransactionService<BackupGatewayDbContext> transactionService =

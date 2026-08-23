@@ -1,5 +1,6 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Services.Auth;
+using BackupGateway.Web.Services.Hosting;
 using BackupGateway.Web.Services.Leases;
 using BackupGateway.Web.Services.Lifecycle;
 using BackupGateway.Web.Services.Lifecycle.Transports;
@@ -54,6 +55,8 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddSingleton(leaseOptions);
         services.AddSingleton(lifecycleOptions);
         services.AddSingleton<ITargetCatalog>(targetCatalog);
+        services.AddSingleton<SingleInstanceGuard>();
+        services.AddHostedService<SingleInstanceGuardMonitor>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<CorrelationContext>();
         services.AddScoped<IAuditEventFactory, AuditEventFactory>();
@@ -80,7 +83,7 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddScoped<ITargetLifecycleReconciler, TargetLifecycleReconciler>();
         services.AddSingleton<TargetReconciliationCoordinator>();
         services.AddSingleton<TargetReconciliationQueue>();
-        services.AddSingleton<ITargetReconciliationQueue>(provider => provider.GetRequiredService<TargetReconciliationQueue>());
+        services.AddSingleton<ITargetReconciliationScheduler>(provider => provider.GetRequiredService<TargetReconciliationQueue>());
         services.AddHostedService(provider => provider.GetRequiredService<TargetReconciliationQueue>());
         services.AddHostedService<PeriodicTargetReconciliationService>();
 
@@ -122,6 +125,14 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddTransactionManagement<BackupGatewayDbContext>(transactionOptions => transactionOptions
             .UseIsolationLevel(IsolationLevel.ReadCommitted));
 
+        services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+        {
+            CorrelationContext? correlationContext = context.HttpContext.RequestServices.GetService<CorrelationContext>();
+            if (correlationContext is not null)
+            {
+                context.ProblemDetails.Extensions["correlationId"] = correlationContext.Id;
+            }
+        });
         services.AddControllers().AddJsonOptions(options =>
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.AddHealthChecks()
@@ -132,6 +143,9 @@ internal sealed class Startup : IAsyncStartupScript
 
     public static async ValueTask ConfigureAsync(WebApplication app, CancellationToken cancellationToken = default)
     {
+        SingleInstanceGuard singleInstanceGuard = app.Services.GetRequiredService<SingleInstanceGuard>();
+        await singleInstanceGuard.AcquireAsync(cancellationToken);
+
         await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
         {
             BackupGatewayDbContext context = scope.ServiceProvider.GetRequiredService<BackupGatewayDbContext>();
@@ -147,6 +161,7 @@ internal sealed class Startup : IAsyncStartupScript
         }
 
         app.UseMiddleware<CorrelationMiddleware>();
+        app.UseExceptionHandler();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();

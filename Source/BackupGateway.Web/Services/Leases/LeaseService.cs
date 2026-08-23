@@ -10,7 +10,7 @@ namespace BackupGateway.Web.Services.Leases;
 public sealed class LeaseService(
     ITransactionService<BackupGatewayDbContext> transactionService,
     TargetLeaseMutationSerializer mutationSerializer,
-    ITargetReconciliationQueue reconciliationQueue,
+    ITargetReconciliationScheduler reconciliationQueue,
     LeaseOptions options,
     TimeProvider timeProvider,
     IAuditEventFactory auditEventFactory)

@@ -1,5 +1,6 @@
 using BackupGateway.Web;
 using BackupGateway.Web.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -11,7 +12,7 @@ namespace BackupGateway.Web.Tests;
 public sealed class StartupTests
 {
     [TestMethod]
-    public async Task ConfigureServices_RegistersPersistenceInfrastructureAsync()
+    public async Task ConfigureServicesRegistersPersistenceInfrastructureAsync()
     {
         ServiceCollection services = new();
         using ConfigurationManager configuration = new();
@@ -30,5 +31,15 @@ public sealed class StartupTests
 
         Assert.IsNotNull(healthCheckService);
         Assert.IsNotNull(transactionService);
+    }
+    [TestMethod]
+    public async Task MigrationSnapshotMatchesCurrentModelAsync()
+    {
+        BackupGatewayDbContextFactory factory = new();
+        await using BackupGatewayDbContext dbContext = factory.CreateDbContext([]);
+
+        bool hasPendingModelChanges = dbContext.Database.HasPendingModelChanges();
+
+        Assert.IsFalse(hasPendingModelChanges);
     }
 }

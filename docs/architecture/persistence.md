@@ -40,7 +40,7 @@ The DbContext rejects modified or deleted tracked audit events during `SaveChang
 
 WKG transaction management is configured at read-committed isolation. Database transactions protect short state transitions and authorization/lease invariants. They must not span Wake-on-LAN delivery, readiness polling, SSH, or other network waits.
 
-The initial deployment has one active gateway instance, so process-local target reconciliation will provide execution serialization while PostgreSQL remains the durable source of truth. Database uniqueness and check constraints protect invariants that must survive process restarts or duplicate requests.
+The initial deployment has one active gateway instance, so process-local target reconciliation provides execution serialization while PostgreSQL remains the durable source of truth. The application enforces this deployment contract with a PostgreSQL session advisory lock acquired before migrations/startup initialization; losing the lock session causes the process to stop. The guard prevents accidental concurrent instances but does not provide the distributed fencing required for supported active-active replicas. Database uniqueness and check constraints protect invariants that must survive process restarts or duplicate requests.
 
 ## Testing boundary
 

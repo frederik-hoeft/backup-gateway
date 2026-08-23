@@ -7,7 +7,7 @@ internal sealed partial class TargetReconciliationQueue(
     TargetReconciliationCoordinator coordinator,
     ITargetCatalog targetCatalog,
     ILogger<TargetReconciliationQueue> logger)
-    : BackgroundService, ITargetReconciliationQueue
+    : BackgroundService, ITargetReconciliationScheduler
 {
     private readonly Channel<string> _queue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
     {

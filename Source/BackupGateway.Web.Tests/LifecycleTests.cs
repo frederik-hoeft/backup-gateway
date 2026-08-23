@@ -82,6 +82,30 @@ public sealed class LifecycleTests
     }
 
     [TestMethod]
+    public async Task ReconcilerRecoversUnknownTargetWithHeldLeaseFromFreshReadinessAsync()
+    {
+        Harness harness = new(TargetDesiredState.Online, TargetLifecycleState.Unknown, true);
+
+        await harness.Reconciler.ReconcileAsync("backup-1", CancellationToken.None);
+
+        Assert.AreEqual(TargetLifecycleState.Online, harness.State.State);
+        Assert.AreEqual(0, harness.Wake.Count);
+        Assert.AreEqual(0, harness.Shutdown.Count);
+    }
+
+    [TestMethod]
+    public async Task ReconcilerRecoversUnknownReachableTargetWithoutLeaseByShuttingDownAsync()
+    {
+        Harness harness = new(TargetDesiredState.Offline, TargetLifecycleState.Unknown, true, false, false);
+
+        await harness.Reconciler.ReconcileAsync("backup-1", CancellationToken.None);
+
+        Assert.AreEqual(TargetLifecycleState.Offline, harness.State.State);
+        Assert.AreEqual(0, harness.Wake.Count);
+        Assert.AreEqual(1, harness.Shutdown.Count);
+    }
+
+    [TestMethod]
     public async Task ReconcilerRecordsTransportFailureAsFaultAsync()
     {
         Harness harness = new(TargetDesiredState.Offline, TargetLifecycleState.Online, true)

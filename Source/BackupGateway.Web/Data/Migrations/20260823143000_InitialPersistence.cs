@@ -5,6 +5,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
+#pragma warning disable CA1861 // Keep migration source aligned with EF-generated array arguments.
+
 namespace BackupGateway.Web.Data.Migrations;
 
 [DbContext(typeof(BackupGatewayDbContext))]
@@ -324,3 +326,5 @@ public sealed class InitialPersistence : Migration
         migrationBuilder.DropTable(name: "AspNetUsers");
     }
 }
+
+#pragma warning restore CA1861

@@ -59,7 +59,7 @@ public sealed class MetricsController(
                     output.Append("backup_gateway_target_state{target=\"")
                         .Append(target.Id)
                         .Append("\",state=\"")
-                        .Append(state.ToString().ToLowerInvariant())
+                        .Append(GetMetricStateName(state))
                         .Append("\"} ")
                         .AppendLine(state == current ? "1" : "0");
                 }
@@ -85,6 +85,17 @@ public sealed class MetricsController(
                 StatusCode = StatusCodes.Status200OK,
             };
         }, cancellationToken);
+
+    private static string GetMetricStateName(TargetLifecycleState state) => state switch
+    {
+        TargetLifecycleState.Unknown => "unknown",
+        TargetLifecycleState.Offline => "offline",
+        TargetLifecycleState.Starting => "starting",
+        TargetLifecycleState.Online => "online",
+        TargetLifecycleState.Stopping => "stopping",
+        TargetLifecycleState.Faulted => "faulted",
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown target lifecycle state."),
+    };
 
     private static void AppendMetric(StringBuilder output, string metric, string targetId, string freshness, int value) =>
         output.Append(metric)
