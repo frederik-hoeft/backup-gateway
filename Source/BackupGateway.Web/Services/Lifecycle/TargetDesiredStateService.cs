@@ -6,6 +6,7 @@ using Wkg.AspNetCore.Transactions;
 namespace BackupGateway.Web.Services.Lifecycle;
 
 public sealed class TargetDesiredStateService(ITransactionService<BackupGatewayDbContext> transactionService)
+    : ITargetDesiredStateProvider
 {
     public Task<TargetDesiredState> GetAsync(string targetId, CancellationToken cancellationToken = default)
     {

@@ -79,7 +79,7 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md), and the durable lease/concurrency contract in [`docs/architecture/lease-coordination.md`](docs/architecture/lease-coordination.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
+The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md), the durable lease/concurrency contract in [`docs/architecture/lease-coordination.md`](docs/architecture/lease-coordination.md), and lifecycle execution in [`docs/architecture/lifecycle.md`](docs/architecture/lifecycle.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
 
 ### Integration tests
 
@@ -101,6 +101,14 @@ docker compose up --build
 The first start creates the `admin` Identity user from `secrets/bootstrap-admin-credential`. The bootstrap secret cannot replace an existing administrator once Identity contains users. The JWT private key remains mounted read-only because it is required for token issuance and validation.
 
 The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access. The Compose stack passes the PostgreSQL settings to the gateway through the standard `ConnectionStrings__DatabaseConnection` environment variable. When running the gateway directly, provide the same connection-string key and the `Auth:Jwt` / initial `Auth:BootstrapAdministrator` settings through user secrets or the environment. See the authentication architecture document for the complete contract.
+
+### Target lifecycle configuration
+
+Each target is configured through the standard `Targets:<target-id>` configuration hierarchy. The definition includes its host, Wake-on-LAN MAC/destination, TCP readiness probe, and fixed SSH shutdown contract. The SSH private key path must point at a file mounted into the gateway container, and `Shutdown:HostKeyFingerprint` must contain the pinned OpenSSH `SHA256:` fingerprint for the target. The gateway rejects unsafe or incomplete target definitions during startup.
+
+The runtime image contains the OpenSSH client used for host-key scanning and shutdown. The gateway itself still runs as the non-root `app` user; mounted SSH private keys therefore need to be readable by that user without being writable by the container.
+
+Lifecycle reconciliation runs immediately on service startup and periodically thereafter. `Lifecycle:ReconciliationInterval` defaults to one minute and accepts values between ten seconds and one hour.
 
 ### Client-side aborts
 

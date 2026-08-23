@@ -2,6 +2,7 @@ using BackupGateway.Web.Data;
 using BackupGateway.Web.Services.Auth;
 using BackupGateway.Web.Services.Leases;
 using BackupGateway.Web.Services.Lifecycle;
+using BackupGateway.Web.Services.Lifecycle.Transports;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +26,7 @@ internal sealed class Startup : IAsyncStartupScript
             ?? throw new InvalidOperationException("ConnectionStrings:DatabaseConnection configuration is required.");
         JwtOptions jwtOptions = JwtOptions.FromConfiguration(configuration);
         LeaseOptions leaseOptions = LeaseOptions.FromConfiguration(configuration);
+        LifecycleOptions lifecycleOptions = LifecycleOptions.FromConfiguration(configuration);
         TargetCatalog targetCatalog = TargetCatalog.FromConfiguration(configuration);
 
         services.AddSingleton<IModelLoader, BackupGatewayModelLoader>();
@@ -48,6 +50,7 @@ internal sealed class Startup : IAsyncStartupScript
 
         services.AddSingleton(jwtOptions);
         services.AddSingleton(leaseOptions);
+        services.AddSingleton(lifecycleOptions);
         services.AddSingleton<ITargetCatalog>(targetCatalog);
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IJwtSigningKeyProvider, RsaPemJwtSigningKeyProvider>();
@@ -62,11 +65,18 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddSingleton<TargetLeaseMutationSerializer>();
         services.AddScoped<LeaseService>();
         services.AddScoped<TargetDesiredStateService>();
-        services.AddScoped<ITargetLifecycleReconciler, NoOpTargetLifecycleReconciler>();
+        services.AddScoped<ITargetDesiredStateProvider>(provider => provider.GetRequiredService<TargetDesiredStateService>());
+        services.AddScoped<ITargetRuntimeStateStore, TargetRuntimeStateStore>();
+        services.AddSingleton<IWakeOnLanTransport, WakeOnLanTransport>();
+        services.AddSingleton<ITargetReadinessProbe, TcpTargetReadinessProbe>();
+        services.AddSingleton<IExternalProcessRunner, ExternalProcessRunner>();
+        services.AddSingleton<ITargetShutdownTransport, SshShutdownTransport>();
+        services.AddScoped<ITargetLifecycleReconciler, TargetLifecycleReconciler>();
         services.AddSingleton<TargetReconciliationCoordinator>();
         services.AddSingleton<TargetReconciliationQueue>();
         services.AddSingleton<ITargetReconciliationQueue>(provider => provider.GetRequiredService<TargetReconciliationQueue>());
         services.AddHostedService(provider => provider.GetRequiredService<TargetReconciliationQueue>());
+        services.AddHostedService<PeriodicTargetReconciliationService>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer();
