@@ -8,6 +8,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      ConnectionStrings__DatabaseConnection: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-backup_gateway};Username=${POSTGRES_USER:-backup_gateway};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     restart: unless-stopped
 
   postgres:

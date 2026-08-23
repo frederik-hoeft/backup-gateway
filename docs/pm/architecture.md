@@ -90,25 +90,17 @@ The application uses coarse roles for administrator versus backup-client capabil
 
 ### Leases
 
-Lease records contain:
+Lease records contain the lease identifier, target identifier, owning client identifier, creation time, last heartbeat time, state, and release time. The caller-selected lease identifier is the primary key, so it cannot be reassigned to another client or target.
 
-- lease identifier;
-- target identifier;
-- owning Identity user identifier;
-- creation time;
-- release/force-release time and actor where applicable;
-- last heartbeat time;
-- optional bounded client correlation metadata useful for operations.
-
-Uniqueness constraints enforce idempotent ownership semantics in addition to application-level validation.
+The client identifier is intentionally not a foreign key to Identity. Revoking or deleting a client must not cascade into lease deletion and accidentally make a target eligible for shutdown.
 
 ### Target runtime observations
 
-A runtime row per configured target records the latest lifecycle state, observation timestamp, last successful readiness time, and useful failure metadata. Persisted observations support diagnostics and recovery, but a process restart treats their freshness as unknown until reconciliation probes the target again.
+A runtime row per configured target records the latest lifecycle state and observation timestamp. Persisted observations support diagnostics and recovery, but a process restart treats their freshness as unknown until reconciliation probes the target again.
 
 ### Audit events
 
-Audit events are append-only records of security-sensitive and lifecycle-significant actions. State changes and their corresponding intent audit records should be persisted in the same transaction where practical. External side effects generate outcome events after the attempt completes.
+Audit events are append-only records of security-sensitive and lifecycle-significant actions. They retain scalar actor/target/lease identifiers rather than foreign keys so history cannot disappear through cascading deletes. State changes and their corresponding intent audit records should be persisted in the same transaction where practical. External side effects generate outcome events after the attempt completes.
 
 ## EF Core and transaction boundary
 

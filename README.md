@@ -79,7 +79,11 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`.
+The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md); product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
+
+### Integration tests
+
+Persistence integration tests require a dedicated PostgreSQL database supplied through `BACKUP_GATEWAY_TEST_DATABASE`. The test suite recreates this database, so the connection must never point at a development or production database.
 
 ### Docker Compose
 
@@ -90,7 +94,7 @@ printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -base64 32)" > .env
 docker compose up --build
 ```
 
-The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access.
+The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access. The Compose stack passes the PostgreSQL settings to the gateway through the standard `ConnectionStrings__DatabaseConnection` environment variable. When running the gateway directly, provide the same connection-string key through user secrets or the environment.
 
 ### Client-side aborts
 
