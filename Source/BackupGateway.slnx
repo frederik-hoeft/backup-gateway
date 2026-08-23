@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Project Path="BackupGateway.Web/BackupGateway.Web.csproj" />
+  <Project Path="BackupGateway.Web.Tests/BackupGateway.Web.Tests.csproj" />
+  <Project Path="BackupGateway.Web.Tests.Integration/BackupGateway.Web.Tests.Integration.csproj" />
+</Solution>

@@ -1,0 +1,20 @@
+.env
+*.secrets
+*.log
+*.tmp
+*.stackdump
+*.zip
+
+# .NET build artifacts
+Source/**/bin/
+Source/**/obj/
+Source/**/*.user
+Source/**/*.suo
+Source/**/*.cache
+Source/.vs/
+Source/artifacts/
+Source/**/TestResults/
+
+# Local tooling
+.vscode/
+.idea/

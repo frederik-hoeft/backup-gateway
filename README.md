@@ -1,4 +1,4 @@
-# Backup Gateway (Design Draft)
+# Backup Gateway
 
 A centralized gateway for coordinating multi-source, multi-target backup operations, with a focus on orchestrating the lifecycle of target nodes (Wake-on-LAN and remote shutdown) while following best practices for security, observability, and maintainability.
 
@@ -61,6 +61,36 @@ In its initial implementation, **the Backup Gateway will explicitly not handle**
 - PostgreSQL via Npgsql/EF Core, including ASP.NET Core Identity for authentication and authorization state.
 - WKG ASP.NET Core transaction management and WKG Entity Framework Core model discovery/mapping conventions, following `wkg-framework-demo`.
 - Modern `.slnx` solution format and the project coding conventions from `frederik-hoeft/csharp-syle-guide`.
+
+## Development
+
+The .NET solution lives under `Source/` and uses the same `Source/`-scoped project layout as the reference repositories. The current foundation contains the ASP.NET Core application plus separate unit and integration test projects.
+
+Build and test from the repository root:
+
+```bash
+dotnet build Source/BackupGateway.slnx
+dotnet test Source/BackupGateway.slnx
+```
+
+Run the API directly:
+
+```bash
+dotnet run --project Source/BackupGateway.Web
+```
+
+The liveness endpoint is available at `/health/live`.
+
+### Docker Compose
+
+The development Compose stack starts the gateway and PostgreSQL 18. Database credentials are deliberately not stored in the repository. Supply them through an untracked `.env` file or the invoking environment. For example:
+
+```bash
+printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -base64 32)" > .env
+docker compose up --build
+```
+
+The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access.
 
 ### Client-side aborts
 
