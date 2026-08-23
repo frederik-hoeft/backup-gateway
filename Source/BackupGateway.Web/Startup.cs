@@ -1,5 +1,6 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Services.Auth;
+using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,6 +21,7 @@ internal sealed class Startup : IAsyncStartupScript
         string databaseConnection = configuration.GetConnectionString("DatabaseConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DatabaseConnection configuration is required.");
         JwtOptions jwtOptions = JwtOptions.FromConfiguration(configuration);
+        TargetCatalog targetCatalog = TargetCatalog.FromConfiguration(configuration);
 
         services.AddSingleton<IModelLoader, BackupGatewayModelLoader>();
         services.AddDbContext<BackupGatewayDbContext>(options => options.UseNpgsql(databaseConnection));
@@ -41,12 +43,14 @@ internal sealed class Startup : IAsyncStartupScript
             .AddEntityFrameworkStores<BackupGatewayDbContext>();
 
         services.AddSingleton(jwtOptions);
+        services.AddSingleton<ITargetCatalog>(targetCatalog);
         services.AddSingleton<IJwtSigningKeyProvider, RsaPemJwtSigningKeyProvider>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddSingleton<ServiceCredentialGenerator>();
         services.AddSingleton<InvalidCredentialTimingService>();
         services.AddScoped<GatewayJwtBearerEvents>();
         services.AddScoped<IdentityBootstrapService>();
+        services.AddScoped<TargetConfigurationReconciler>();
         services.AddScoped<ITargetAuthorizationService, TargetAuthorizationService>();
         services.AddScoped<IAuthorizationHandler, TargetGrantAuthorizationHandler>();
 
@@ -102,6 +106,10 @@ internal sealed class Startup : IAsyncStartupScript
             await context.Database.MigrateAsync(cancellationToken);
 
             _ = scope.ServiceProvider.GetRequiredService<IJwtSigningKeyProvider>();
+            TargetConfigurationReconciler targetConfigurationReconciler =
+                scope.ServiceProvider.GetRequiredService<TargetConfigurationReconciler>();
+            await targetConfigurationReconciler.ReconcileAsync(cancellationToken);
+
             IdentityBootstrapService bootstrapService = scope.ServiceProvider.GetRequiredService<IdentityBootstrapService>();
             await bootstrapService.InitializeAsync(cancellationToken);
         }

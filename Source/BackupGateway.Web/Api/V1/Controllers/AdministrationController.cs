@@ -2,6 +2,7 @@ using BackupGateway.Web.Api.V1.Models.Administration;
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Auth;
+using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ namespace BackupGateway.Web.Api.V1.Controllers;
 public sealed class AdministrationController(
     UserManager<IdentityUser<Guid>> userManager,
     ServiceCredentialGenerator credentialGenerator,
+    ITargetCatalog targetCatalog,
     ITransactionServiceHandle transactionService)
     : DatabaseController<BackupGatewayDbContext>(transactionService)
 {
@@ -122,7 +124,7 @@ public sealed class AdministrationController(
         {
             return transaction.Rollback(Unauthorized());
         }
-        if (!IsValidTargetId(targetId))
+        if (!targetCatalog.TryGet(targetId, out _))
         {
             return transaction.Rollback(NotFound());
         }
@@ -160,7 +162,7 @@ public sealed class AdministrationController(
         {
             return transaction.Rollback(Unauthorized());
         }
-        if (!IsValidTargetId(targetId))
+        if (!targetCatalog.TryGet(targetId, out _))
         {
             return transaction.Rollback(NotFound());
         }
@@ -196,6 +198,4 @@ public sealed class AdministrationController(
         Outcome = "success",
     };
 
-    private static bool IsValidTargetId(string targetId) =>
-        !string.IsNullOrWhiteSpace(targetId) && targetId.Length <= 128;
 }

@@ -79,7 +79,7 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), and the service-identity security model is documented in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
+The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), and the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
 
 ### Integration tests
 
