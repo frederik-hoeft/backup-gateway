@@ -2,7 +2,7 @@
 
 A centralized gateway for coordinating multi-source, multi-target backup operations, with a focus on orchestrating the lifecycle of target nodes (Wake-on-LAN and remote shutdown) while following best practices for security, observability, and maintainability.
 
-The refined initial production scope, architecture, user stories, and implementation plan live under [`docs/pm`](docs/pm/README.md).
+The implemented MVP architecture starts with the [`docs/architecture` overview](docs/architecture/README.md). Product scope, user stories, and the implementation plan live under [`docs/pm`](docs/pm/README.md).
 
 ## Background
 
@@ -79,7 +79,7 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`, readiness at `/health/ready`, and Prometheus metrics at `/metrics`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), the service-identity security model in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md), the immutable operational target contract in [`docs/architecture/target-configuration.md`](docs/architecture/target-configuration.md), the durable lease/concurrency contract in [`docs/architecture/lease-coordination.md`](docs/architecture/lease-coordination.md), lifecycle execution in [`docs/architecture/lifecycle.md`](docs/architecture/lifecycle.md), and the audit/telemetry boundary in [`docs/architecture/observability.md`](docs/architecture/observability.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md). The checked-in [API v1 contract](docs/api/README.md) and [production deployment guide](docs/deployment.md) define the external integration and operational boundaries.
+The liveness endpoint is available at `/health/live`, readiness at `/health/ready`, and Prometheus metrics at `/metrics`. Start with the [architecture overview](docs/architecture/README.md) for the system model and links to focused subsystem documentation. Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md). The checked-in [API v1 contract](docs/api/README.md) and [production deployment guide](docs/deployment.md) define the external integration and operational boundaries.
 
 ### Integration tests
 

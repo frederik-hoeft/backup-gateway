@@ -45,7 +45,7 @@ The initial deployment supports one active gateway process, enforced by the Post
 
 Lifecycle reconciliation uses a separate per-target serializer. This is intentional: network operations may take seconds or minutes and must not block a client from durably acquiring or releasing a lease. Lease mutations commit their database transaction first and then enqueue level-triggered reconciliation. Reconciliation opens its own dependency-injection scope and re-reads durable desired state.
 
-The reconciliation interface is a no-op lifecycle implementation in this phase. Real WOL, readiness, and shutdown side effects are introduced behind the same boundary in the lifecycle-transport phase. Database transactions therefore never span simulated or real long-running lifecycle I/O.
+Lifecycle reconciliation consumes the same queued boundary and performs the configured Wake-on-LAN, readiness, and SSH shutdown operations. Lease mutations never perform those side effects inline. Database transactions therefore never span long-running lifecycle I/O.
 
 Queueing is advisory rather than authoritative. Durable leases remain the source of truth if a request is cancelled after commit or a reconciliation attempt fails. Reconciliation is safe to repeat because each pass derives intent again from current held leases rather than from an edge-triggered start/stop command.
 

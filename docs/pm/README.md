@@ -2,6 +2,8 @@
 
 This directory defines the initial production scope for Backup Gateway and the implementation sequence used to build it. The planning documents are intentionally narrower than the long-term ideas in the project README: the first release is a single-instance, Docker-deployed lifecycle coordinator that safely arbitrates concurrent backup clients.
 
+For the steady-state architecture of the implemented MVP, start with the [architecture overview](../architecture/README.md). The documents here remain the product scope and delivery-plan reference.
+
 ## Documents
 
 - [Requirements](requirements.md) defines the initial production contract, explicit non-goals, and quality requirements.
