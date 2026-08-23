@@ -12,9 +12,13 @@ public sealed class HealthEndpointTests
     public async Task GetLiveness_ReturnsOkAsync()
     {
         string connectionString = IntegrationTestDatabase.RequireConnectionString();
+        await using WebApplicationFactory<BackupGatewayApplication> baseApplication = new();
         await using WebApplicationFactory<BackupGatewayApplication> application =
-            new WebApplicationFactory<BackupGatewayApplication>().WithWebHostBuilder(builder =>
-                builder.UseSetting("ConnectionStrings:DatabaseConnection", connectionString));
+            baseApplication.WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:DatabaseConnection", connectionString);
+                IntegrationTestSecurity.Apply(builder);
+            });
         using HttpClient client = application.CreateClient();
 
         using HttpResponseMessage response = await client.GetAsync("/health/live");

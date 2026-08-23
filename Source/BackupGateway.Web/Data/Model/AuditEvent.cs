@@ -15,6 +15,8 @@ public sealed class AuditEvent : BackupGatewayEntity, IDiscoverableModelConfigur
 
     public Guid? ActorClientId { get; set; }
 
+    public Guid? SubjectClientId { get; set; }
+
     public string? TargetId { get; set; }
 
     public Guid? LeaseId { get; set; }
@@ -43,6 +45,10 @@ public sealed class AuditEvent : BackupGatewayEntity, IDiscoverableModelConfigur
 
         self.Property(auditEvent => auditEvent.ActorClientId)
             .HasColumnName("actor_client_id")
+            .HasColumnType("uuid");
+
+        self.Property(auditEvent => auditEvent.SubjectClientId)
+            .HasColumnName("subject_client_id")
             .HasColumnType("uuid");
 
         self.Property(auditEvent => auditEvent.TargetId)

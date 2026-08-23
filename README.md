@@ -79,7 +79,7 @@ Run the API directly:
 dotnet run --project Source/BackupGateway.Web
 ```
 
-The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md); product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
+The liveness endpoint is available at `/health/live`. Persistence architecture and invariants are documented in [`docs/architecture/persistence.md`](docs/architecture/persistence.md), and the service-identity security model is documented in [`docs/architecture/authentication-authorization.md`](docs/architecture/authentication-authorization.md). Product requirements and implementation tasks live under [`docs/pm`](docs/pm/README.md).
 
 ### Integration tests
 
@@ -87,14 +87,20 @@ Persistence integration tests require a dedicated PostgreSQL database supplied t
 
 ### Docker Compose
 
-The development Compose stack starts the gateway and PostgreSQL 18. Database credentials are deliberately not stored in the repository. Supply them through an untracked `.env` file or the invoking environment. For example:
+The development Compose stack starts the gateway and PostgreSQL 18. Database and authentication secrets are deliberately not stored in the repository. Create local secret files and an untracked `.env` before the first start:
 
 ```bash
+mkdir -p secrets
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out secrets/jwt-signing-key.pem
+openssl rand -base64 32 > secrets/bootstrap-admin-credential
 printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -base64 32)" > .env
+chmod 600 secrets/* .env
 docker compose up --build
 ```
 
-The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access. The Compose stack passes the PostgreSQL settings to the gateway through the standard `ConnectionStrings__DatabaseConnection` environment variable. When running the gateway directly, provide the same connection-string key through user secrets or the environment.
+The first start creates the `admin` Identity user from `secrets/bootstrap-admin-credential`. The bootstrap secret cannot replace an existing administrator once Identity contains users. The JWT private key remains mounted read-only because it is required for token issuance and validation.
+
+The gateway binds to `127.0.0.1:8080` by default. Set `BACKUP_GATEWAY_PORT` to change the host port. PostgreSQL is only reachable on the Compose network; use `docker compose exec postgres psql` for local administrative access. The Compose stack passes the PostgreSQL settings to the gateway through the standard `ConnectionStrings__DatabaseConnection` environment variable. When running the gateway directly, provide the same connection-string key and the `Auth:Jwt` / initial `Auth:BootstrapAdministrator` settings through user secrets or the environment. See the authentication architecture document for the complete contract.
 
 ### Client-side aborts
 

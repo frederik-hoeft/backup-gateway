@@ -34,6 +34,10 @@ internal sealed class BackupGatewayDbContextModelSnapshot : ModelSnapshot
                 .HasColumnType("uuid")
                 .HasColumnName("actor_client_id");
 
+            builder.Property<Guid?>(nameof(AuditEvent.SubjectClientId))
+                .HasColumnType("uuid")
+                .HasColumnName("subject_client_id");
+
             builder.Property<Guid>(nameof(AuditEvent.CorrelationId))
                 .HasColumnType("uuid")
                 .HasColumnName("correlation_id");

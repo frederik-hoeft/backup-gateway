@@ -11,6 +11,14 @@ services:
     environment:
       ConnectionStrings__DatabaseConnection: >-
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-backup_gateway};Username=${POSTGRES_USER:-backup_gateway};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      Auth__Jwt__Issuer: ${BACKUP_GATEWAY_JWT_ISSUER:-backup-gateway}
+      Auth__Jwt__Audience: ${BACKUP_GATEWAY_JWT_AUDIENCE:-backup-gateway-clients}
+      Auth__Jwt__RsaPrivateKeyFile: /run/secrets/backup-gateway-jwt.pem
+      Auth__BootstrapAdministrator__Username: ${BACKUP_GATEWAY_BOOTSTRAP_ADMIN:-admin}
+      Auth__BootstrapAdministrator__CredentialFile: /run/secrets/backup-gateway-bootstrap-admin
+    volumes:
+      - ${BACKUP_GATEWAY_JWT_KEY_FILE:-./secrets/jwt-signing-key.pem}:/run/secrets/backup-gateway-jwt.pem:ro
+      - ${BACKUP_GATEWAY_BOOTSTRAP_CREDENTIAL_FILE:-./secrets/bootstrap-admin-credential}:/run/secrets/backup-gateway-bootstrap-admin:ro
     restart: unless-stopped
 
   postgres:

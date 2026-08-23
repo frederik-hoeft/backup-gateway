@@ -17,6 +17,9 @@ public sealed class StartupTests
         using ConfigurationManager configuration = new();
         configuration["ConnectionStrings:DatabaseConnection"] =
             "Host=localhost;Port=5432;Database=backup_gateway_test;Username=backup_gateway;Password=test";
+        configuration["Auth:Jwt:Issuer"] = "backup-gateway-tests";
+        configuration["Auth:Jwt:Audience"] = "backup-gateway-test-clients";
+        configuration["Auth:Jwt:RsaPrivateKeyFile"] = "unused-for-service-registration";
 
         await Startup.ConfigureServicesAsync(services, configuration);
 

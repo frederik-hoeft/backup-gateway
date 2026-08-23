@@ -25,6 +25,7 @@ internal static class IntegrationTestDatabase
         ServiceCollection services = new();
         using ConfigurationManager configuration = new();
         configuration["ConnectionStrings:DatabaseConnection"] = RequireConnectionString();
+        IntegrationTestSecurity.Apply(configuration);
         await Startup.ConfigureServicesAsync(services, configuration);
         return services.BuildServiceProvider();
     }
