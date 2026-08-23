@@ -1,6 +1,7 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Lifecycle;
+using BackupGateway.Web.Services.Observability;
 using Microsoft.EntityFrameworkCore;
 using Wkg.AspNetCore.Transactions;
 
@@ -11,7 +12,8 @@ public sealed class LeaseService(
     TargetLeaseMutationSerializer mutationSerializer,
     ITargetReconciliationQueue reconciliationQueue,
     LeaseOptions options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAuditEventFactory auditEventFactory)
 {
     internal Task<LeaseAcquireResult> AcquireAsync(
         Guid clientId,
@@ -148,16 +150,13 @@ public sealed class LeaseService(
 
             lease.State = BackupLeaseState.ForceReleased;
             lease.ReleasedAtUtc = timeProvider.GetUtcNow();
-            dbContext.Add(new AuditEvent
-            {
-                CorrelationId = Guid.CreateVersion7(),
-                ActorClientId = administratorId,
-                SubjectClientId = lease.ClientId,
-                TargetId = targetId,
-                LeaseId = leaseId,
-                EventType = "lease.force-released",
-                Outcome = "success",
-            });
+            dbContext.Add(auditEventFactory.Create(
+                "lease.force-released",
+                "success",
+                actorClientId: administratorId,
+                subjectClientId: lease.ClientId,
+                targetId: targetId,
+                leaseId: leaseId));
             await dbContext.SaveChangesAsync(transactionCancellationToken);
             return transaction.Commit(LeaseReleaseResult.Released());
         }, ct);
@@ -202,15 +201,13 @@ public sealed class LeaseService(
             observation?.ObservedAtUtc);
     }
 
-    private static AuditEvent CreateAuditEvent(Guid clientId, string targetId, Guid leaseId, string eventType) => new()
-    {
-        CorrelationId = Guid.CreateVersion7(),
-        ActorClientId = clientId,
-        TargetId = targetId,
-        LeaseId = leaseId,
-        EventType = eventType,
-        Outcome = "success",
-    };
+    private AuditEvent CreateAuditEvent(Guid clientId, string targetId, Guid leaseId, string eventType) =>
+        auditEventFactory.Create(
+            eventType,
+            "success",
+            actorClientId: clientId,
+            targetId: targetId,
+            leaseId: leaseId);
 }
 
 internal sealed record LeaseSnapshot(

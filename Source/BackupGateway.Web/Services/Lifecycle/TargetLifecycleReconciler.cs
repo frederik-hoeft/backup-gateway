@@ -1,5 +1,6 @@
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Lifecycle.Transports;
+using BackupGateway.Web.Services.Observability;
 using BackupGateway.Web.Services.Targets;
 
 namespace BackupGateway.Web.Services.Lifecycle;
@@ -11,6 +12,8 @@ internal sealed partial class TargetLifecycleReconciler(
     IWakeOnLanTransport wakeOnLanTransport,
     ITargetReadinessProbe readinessProbe,
     ITargetShutdownTransport shutdownTransport,
+    ILifecycleAuditWriter lifecycleAuditWriter,
+    LifecycleMetrics lifecycleMetrics,
     TimeProvider timeProvider,
     ILogger<TargetLifecycleReconciler> logger) : ITargetLifecycleReconciler
 {
@@ -18,15 +21,17 @@ internal sealed partial class TargetLifecycleReconciler(
 
     public async Task ReconcileAsync(string targetId, CancellationToken cancellationToken)
     {
-        if (!targetCatalog.TryGet(targetId, out TargetDefinition? configuredTarget) || configuredTarget is null)
-        {
-            LogUnconfiguredTarget(logger, targetId);
-            return;
-        }
-        TargetDefinition target = configuredTarget;
-
+        long started = timeProvider.GetTimestamp();
+        string outcome = "success";
         try
         {
+            if (!targetCatalog.TryGet(targetId, out TargetDefinition? configuredTarget) || configuredTarget is null)
+            {
+                LogUnconfiguredTarget(logger, targetId);
+                return;
+            }
+            TargetDefinition target = configuredTarget;
+
             for (int transition = 0; transition < MAXIMUM_TRANSITIONS_PER_PASS; transition++)
             {
                 TargetDesiredState desiredState = await desiredStateProvider.GetAsync(targetId, cancellationToken);
@@ -40,19 +45,27 @@ internal sealed partial class TargetLifecycleReconciler(
                 }
             }
 
+            outcome = "failure";
             await RecordFaultAsync(targetId, "transition-limit", null, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            outcome = "cancelled";
             throw;
         }
         catch (TargetLifecycleTransportException exception)
         {
+            outcome = "failure";
             await RecordFaultAsync(targetId, exception.FailureCode, exception, CancellationToken.None);
         }
         catch (Exception exception)
         {
+            outcome = "failure";
             await RecordFaultAsync(targetId, "unexpected-lifecycle-failure", exception, CancellationToken.None);
+        }
+        finally
+        {
+            lifecycleMetrics.Record(targetId, "reconcile", outcome, timeProvider.GetElapsedTime(started));
         }
     }
 
@@ -80,7 +93,11 @@ internal sealed partial class TargetLifecycleReconciler(
         }
 
         await stateStore.SetAsync(target.Id, TargetLifecycleState.Starting, cancellationToken);
-        await wakeOnLanTransport.SendAsync(target, cancellationToken);
+        await ExecuteSideEffectAsync(
+            target.Id,
+            "wake",
+            ct => wakeOnLanTransport.SendAsync(target, ct),
+            cancellationToken);
         TargetDesiredState desiredAfterWake = await desiredStateProvider.GetAsync(target.Id, cancellationToken);
 
         bool becameReady = await WaitForOnlineAsync(target, target.Readiness.OverallTimeout, cancellationToken);
@@ -139,7 +156,11 @@ internal sealed partial class TargetLifecycleReconciler(
             return false;
         }
 
-        await shutdownTransport.RequestShutdownAsync(target, cancellationToken);
+        await ExecuteSideEffectAsync(
+            target.Id,
+            "shutdown",
+            ct => shutdownTransport.RequestShutdownAsync(target, ct),
+            cancellationToken);
         _ = await desiredStateProvider.GetAsync(target.Id, cancellationToken);
 
         if (!await WaitForOfflineAsync(target, target.Shutdown.OfflineTimeout, cancellationToken))
@@ -214,6 +235,37 @@ internal sealed partial class TargetLifecycleReconciler(
         }
         await Task.Delay(remaining < retryInterval ? remaining : retryInterval, timeProvider, cancellationToken);
         return timeProvider.GetUtcNow() < deadline;
+    }
+
+    private async Task ExecuteSideEffectAsync(
+        string targetId,
+        string operation,
+        Func<CancellationToken, Task> action,
+        CancellationToken cancellationToken)
+    {
+        string eventType = $"lifecycle.{operation}";
+        await lifecycleAuditWriter.WriteAsync(targetId, eventType, "intent", null, cancellationToken);
+        long started = timeProvider.GetTimestamp();
+        try
+        {
+            await action(cancellationToken);
+            lifecycleMetrics.Record(targetId, operation, "success", timeProvider.GetElapsedTime(started));
+            await lifecycleAuditWriter.WriteAsync(targetId, eventType, "success", null, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            lifecycleMetrics.Record(targetId, operation, "cancelled", timeProvider.GetElapsedTime(started));
+            throw;
+        }
+        catch (Exception exception)
+        {
+            lifecycleMetrics.Record(targetId, operation, "failure", timeProvider.GetElapsedTime(started));
+            string failureCode = exception is TargetLifecycleTransportException transportException
+                ? transportException.FailureCode
+                : "unexpected-lifecycle-failure";
+            await lifecycleAuditWriter.WriteAsync(targetId, eventType, "failure", failureCode, CancellationToken.None);
+            throw;
+        }
     }
 
     private async Task RecordFaultAsync(

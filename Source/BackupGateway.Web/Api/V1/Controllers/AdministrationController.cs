@@ -3,6 +3,7 @@ using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Auth;
 using BackupGateway.Web.Services.Leases;
+using BackupGateway.Web.Services.Observability;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +22,7 @@ public sealed class AdministrationController(
     ServiceCredentialGenerator credentialGenerator,
     ITargetCatalog targetCatalog,
     LeaseService leaseService,
+    IAuditEventFactory auditEventFactory,
     ITransactionServiceHandle transactionService)
     : DatabaseController<BackupGatewayDbContext>(transactionService)
 {
@@ -201,18 +203,15 @@ public sealed class AdministrationController(
         return transaction.Commit(NoContent());
     }, cancellationToken);
 
-    private static AuditEvent CreateAuditEvent(
+    private AuditEvent CreateAuditEvent(
         Guid administratorId,
         Guid subjectClientId,
         string eventType,
-        string? targetId = null) => new()
-    {
-        CorrelationId = Guid.CreateVersion7(),
-        ActorClientId = administratorId,
-        SubjectClientId = subjectClientId,
-        TargetId = targetId,
-        EventType = eventType,
-        Outcome = "success",
-    };
+        string? targetId = null) => auditEventFactory.Create(
+            eventType,
+            "success",
+            actorClientId: administratorId,
+            subjectClientId: subjectClientId,
+            targetId: targetId);
 
 }

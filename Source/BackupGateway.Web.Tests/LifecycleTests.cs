@@ -1,6 +1,7 @@
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Lifecycle;
 using BackupGateway.Web.Services.Lifecycle.Transports;
+using BackupGateway.Web.Services.Observability;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
@@ -37,6 +38,9 @@ public sealed class LifecycleTests
         Assert.AreEqual(1, harness.Wake.Count);
         Assert.AreEqual(0, harness.Shutdown.Count);
         Assert.AreEqual(TargetLifecycleState.Online, harness.State.State);
+        CollectionAssert.Contains(harness.Audit.Events.Select(item => item.EventType).ToList(), "lifecycle.wake");
+        CollectionAssert.Contains(harness.Audit.Events.Select(item => item.Outcome).ToList(), "intent");
+        CollectionAssert.Contains(harness.Audit.Events.Select(item => item.Outcome).ToList(), "success");
     }
 
     [TestMethod]
@@ -115,6 +119,30 @@ public sealed class LifecycleTests
     }
 
     [TestMethod]
+    public async Task SshShutdownDoesNotExposeProcessOutputInFailureAsync()
+    {
+        byte[] scannedKey = Encoding.ASCII.GetBytes("scanned-key");
+        string line = $"backup-1 ssh-ed25519 {Convert.ToBase64String(scannedKey)}";
+        Assert.IsTrue(SshShutdownTransport.TryGetFingerprint(line, out string? fingerprint));
+        Assert.IsNotNull(fingerprint);
+
+        FakeProcessRunner runner = new(
+            new ExternalProcessResult(0, line, string.Empty),
+            new ExternalProcessResult(1, "", "credential=super-secret"));
+        SshShutdownTransport transport = new(runner);
+        TargetDefinition target = CreateTarget() with
+        {
+            Shutdown = CreateTarget().Shutdown with { HostKeyFingerprint = fingerprint },
+        };
+
+        TargetLifecycleTransportException exception = await Assert.ThrowsAsync<TargetLifecycleTransportException>(
+            () => transport.RequestShutdownAsync(target, CancellationToken.None));
+
+        Assert.AreEqual("ssh-command-failed", exception.FailureCode);
+        Assert.IsFalse(exception.Message.Contains("super-secret", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void SshFingerprintUsesOpenSshSha256Format()
     {
         byte[] key = Encoding.ASCII.GetBytes("host-key");
@@ -125,7 +153,7 @@ public sealed class LifecycleTests
         Assert.IsTrue(parsed);
         Assert.IsNotNull(fingerprint);
         StringAssert.StartsWith(fingerprint, "SHA256:");
-        Assert.IsFalse(fingerprint.EndsWith("=", StringComparison.Ordinal));
+        Assert.IsFalse(fingerprint.EndsWith('='));
     }
 
     private static TargetDefinition CreateTarget()
@@ -159,6 +187,7 @@ public sealed class LifecycleTests
             Wake = new FakeWakeOnLanTransport();
             Readiness = new FakeReadinessProbe(readiness);
             Shutdown = new FakeShutdownTransport(this);
+            Audit = new FakeLifecycleAuditWriter();
             Reconciler = new TargetLifecycleReconciler(
                 Catalog,
                 Desired,
@@ -166,6 +195,8 @@ public sealed class LifecycleTests
                 Wake,
                 Readiness,
                 Shutdown,
+                Audit,
+                new LifecycleMetrics(),
                 TimeProvider.System,
                 NullLogger<TargetLifecycleReconciler>.Instance);
         }
@@ -181,6 +212,8 @@ public sealed class LifecycleTests
         public FakeReadinessProbe Readiness { get; }
 
         public FakeShutdownTransport Shutdown { get; }
+
+        public FakeLifecycleAuditWriter Audit { get; }
 
         public TargetLifecycleTransportException? ShutdownFailure { get; set; }
 
@@ -287,6 +320,24 @@ public sealed class LifecycleTests
             {
                 throw harness.ShutdownFailure;
             }
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeLifecycleAuditWriter : ILifecycleAuditWriter
+    {
+        public List<(string EventType, string Outcome, string? Details)> Events { get; } = [];
+
+        public Task WriteAsync(
+            string targetId,
+            string eventType,
+            string outcome,
+            string? details,
+            CancellationToken cancellationToken)
+        {
+            _ = targetId;
+            _ = cancellationToken;
+            Events.Add((eventType, outcome, details));
             return Task.CompletedTask;
         }
     }

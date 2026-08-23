@@ -3,8 +3,10 @@ using BackupGateway.Web.Services.Auth;
 using BackupGateway.Web.Services.Leases;
 using BackupGateway.Web.Services.Lifecycle;
 using BackupGateway.Web.Services.Lifecycle.Transports;
+using BackupGateway.Web.Services.Observability;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +55,10 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddSingleton(lifecycleOptions);
         services.AddSingleton<ITargetCatalog>(targetCatalog);
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<CorrelationContext>();
+        services.AddScoped<IAuditEventFactory, AuditEventFactory>();
+        services.AddScoped<ILifecycleAuditWriter, LifecycleAuditWriter>();
+        services.AddSingleton<LifecycleMetrics>();
         services.AddSingleton<IJwtSigningKeyProvider, RsaPemJwtSigningKeyProvider>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddSingleton<ServiceCredentialGenerator>();
@@ -118,7 +124,8 @@ internal sealed class Startup : IAsyncStartupScript
 
         services.AddControllers().AddJsonOptions(options =>
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready"]);
 
         return ValueTask.CompletedTask;
     }
@@ -139,9 +146,17 @@ internal sealed class Startup : IAsyncStartupScript
             await bootstrapService.InitializeAsync(cancellationToken);
         }
 
+        app.UseMiddleware<CorrelationMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
-        app.MapHealthChecks("/health/live");
+        app.MapHealthChecks("/health/live", new HealthCheckOptions
+        {
+            Predicate = static _ => false,
+        });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = static registration => registration.Tags.Contains("ready"),
+        });
     }
 }

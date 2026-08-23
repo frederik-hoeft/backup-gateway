@@ -1,8 +1,11 @@
+using BackupGateway.Web.Services.Observability;
 using System.Collections.Concurrent;
 
 namespace BackupGateway.Web.Services.Lifecycle;
 
-public sealed class TargetReconciliationCoordinator(IServiceScopeFactory serviceScopeFactory)
+public sealed class TargetReconciliationCoordinator(
+    IServiceScopeFactory serviceScopeFactory,
+    ILogger<TargetReconciliationCoordinator> logger)
 {
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _semaphores = new(StringComparer.Ordinal);
 
@@ -15,6 +18,12 @@ public sealed class TargetReconciliationCoordinator(IServiceScopeFactory service
         try
         {
             await using AsyncServiceScope scope = serviceScopeFactory.CreateAsyncScope();
+            CorrelationContext correlationContext = scope.ServiceProvider.GetRequiredService<CorrelationContext>();
+            using IDisposable? loggingScope = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["CorrelationId"] = correlationContext.Id.ToString(),
+                ["TargetId"] = targetId,
+            });
             ITargetLifecycleReconciler reconciler = scope.ServiceProvider.GetRequiredService<ITargetLifecycleReconciler>();
             await reconciler.ReconcileAsync(targetId, cancellationToken);
         }

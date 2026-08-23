@@ -1,5 +1,6 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
+using BackupGateway.Web.Services.Observability;
 using Microsoft.EntityFrameworkCore;
 using Wkg.AspNetCore.Transactions;
 
@@ -7,7 +8,8 @@ namespace BackupGateway.Web.Services.Lifecycle;
 
 internal sealed class TargetRuntimeStateStore(
     ITransactionService<BackupGatewayDbContext> transactionService,
-    TimeProvider timeProvider) : ITargetRuntimeStateStore
+    TimeProvider timeProvider,
+    IAuditEventFactory auditEventFactory) : ITargetRuntimeStateStore
 {
     public Task<TargetRuntimeSnapshot> GetAsync(string targetId, CancellationToken cancellationToken) =>
         transactionService.Scoped.RunReadOnlyAsync(async (dbContext, ct) =>
@@ -36,14 +38,11 @@ internal sealed class TargetRuntimeStateStore(
                 .SingleAsync(candidate => candidate.TargetId == targetId, ct);
             observation.State = TargetLifecycleState.Faulted;
             observation.ObservedAtUtc = timeProvider.GetUtcNow();
-            dbContext.Add(new AuditEvent
-            {
-                CorrelationId = Guid.CreateVersion7(),
-                TargetId = targetId,
-                EventType = "lifecycle.reconciliation-failed",
-                Outcome = "failure",
-                Details = failureCode,
-            });
+            dbContext.Add(auditEventFactory.Create(
+                "lifecycle.reconciliation-failed",
+                "failure",
+                targetId: targetId,
+                details: failureCode));
             await dbContext.SaveChangesAsync(ct);
             return transaction.Commit();
         }, cancellationToken);

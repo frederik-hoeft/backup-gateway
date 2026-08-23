@@ -1,7 +1,9 @@
 using BackupGateway.Web.Services.Leases;
 using BackupGateway.Web.Services.Lifecycle;
+using BackupGateway.Web.Services.Observability;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BackupGateway.Web.Tests;
 
@@ -74,13 +76,14 @@ public sealed class LeaseCoordinationTests
         Assert.AreEqual(2, maximumConcurrent);
     }
 
-
     [TestMethod]
     public async Task ReconciliationCoordinatorSerializesSameTargetAsync()
     {
         ConcurrencyProbeReconciler reconciler = new(expectedConcurrentEntries: 1);
         await using ServiceProvider provider = CreateCoordinatorServices(reconciler);
-        TargetReconciliationCoordinator coordinator = new(provider.GetRequiredService<IServiceScopeFactory>());
+        TargetReconciliationCoordinator coordinator = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<TargetReconciliationCoordinator>.Instance);
 
         Task first = coordinator.ReconcileAsync("backup-1", CancellationToken.None);
         await reconciler.ExpectedEntriesReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -99,7 +102,9 @@ public sealed class LeaseCoordinationTests
     {
         ConcurrencyProbeReconciler reconciler = new(expectedConcurrentEntries: 2);
         await using ServiceProvider provider = CreateCoordinatorServices(reconciler);
-        TargetReconciliationCoordinator coordinator = new(provider.GetRequiredService<IServiceScopeFactory>());
+        TargetReconciliationCoordinator coordinator = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<TargetReconciliationCoordinator>.Instance);
 
         Task first = coordinator.ReconcileAsync("backup-1", CancellationToken.None);
         Task second = coordinator.ReconcileAsync("backup-2", CancellationToken.None);
@@ -123,10 +128,10 @@ public sealed class LeaseCoordinationTests
         StringAssert.Contains(exception.Message, "Leases:StaleAfter");
     }
 
-
     private static ServiceProvider CreateCoordinatorServices(ConcurrencyProbeReconciler reconciler)
     {
         ServiceCollection services = new();
+        services.AddScoped<CorrelationContext>();
         services.AddSingleton(reconciler);
         services.AddSingleton<ITargetLifecycleReconciler>(provider =>
             provider.GetRequiredService<ConcurrencyProbeReconciler>());

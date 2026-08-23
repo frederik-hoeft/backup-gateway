@@ -1,5 +1,6 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
+using BackupGateway.Web.Services.Observability;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -12,6 +13,7 @@ internal sealed partial class IdentityBootstrapService(
     UserManager<IdentityUser<Guid>> userManager,
     RoleManager<IdentityRole<Guid>> roleManager,
     IConfiguration configuration,
+    IAuditEventFactory auditEventFactory,
     ILogger<IdentityBootstrapService> logger)
 {
     private const int MAX_BOOTSTRAP_CREDENTIAL_LENGTH = 1024;
@@ -53,13 +55,10 @@ internal sealed partial class IdentityBootstrapService(
         IdentityResult roleResult = await userManager.AddToRoleAsync(administrator, AuthRoles.ADMINISTRATOR);
         ThrowIfIdentityOperationFailed(roleResult, "assign bootstrap administrator role");
 
-        dbContext.Add(new AuditEvent
-        {
-            CorrelationId = Guid.CreateVersion7(),
-            SubjectClientId = administrator.Id,
-            EventType = "security.bootstrap-administrator",
-            Outcome = "success",
-        });
+        dbContext.Add(auditEventFactory.Create(
+            "security.bootstrap-administrator",
+            "success",
+            subjectClientId: administrator.Id));
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
