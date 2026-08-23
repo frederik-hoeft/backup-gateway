@@ -1,5 +1,7 @@
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Services.Auth;
+using BackupGateway.Web.Services.Leases;
+using BackupGateway.Web.Services.Lifecycle;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using Wkg.AspNetCore.Configuration;
 using Wkg.AspNetCore.Transactions.Configuration;
 using Wkg.EntityFrameworkCore.Configuration;
@@ -21,6 +24,7 @@ internal sealed class Startup : IAsyncStartupScript
         string databaseConnection = configuration.GetConnectionString("DatabaseConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DatabaseConnection configuration is required.");
         JwtOptions jwtOptions = JwtOptions.FromConfiguration(configuration);
+        LeaseOptions leaseOptions = LeaseOptions.FromConfiguration(configuration);
         TargetCatalog targetCatalog = TargetCatalog.FromConfiguration(configuration);
 
         services.AddSingleton<IModelLoader, BackupGatewayModelLoader>();
@@ -43,7 +47,9 @@ internal sealed class Startup : IAsyncStartupScript
             .AddEntityFrameworkStores<BackupGatewayDbContext>();
 
         services.AddSingleton(jwtOptions);
+        services.AddSingleton(leaseOptions);
         services.AddSingleton<ITargetCatalog>(targetCatalog);
+        services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IJwtSigningKeyProvider, RsaPemJwtSigningKeyProvider>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddSingleton<ServiceCredentialGenerator>();
@@ -53,6 +59,14 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddScoped<TargetConfigurationReconciler>();
         services.AddScoped<ITargetAuthorizationService, TargetAuthorizationService>();
         services.AddScoped<IAuthorizationHandler, TargetGrantAuthorizationHandler>();
+        services.AddSingleton<TargetLeaseMutationSerializer>();
+        services.AddScoped<LeaseService>();
+        services.AddScoped<TargetDesiredStateService>();
+        services.AddScoped<ITargetLifecycleReconciler, NoOpTargetLifecycleReconciler>();
+        services.AddSingleton<TargetReconciliationCoordinator>();
+        services.AddSingleton<TargetReconciliationQueue>();
+        services.AddSingleton<ITargetReconciliationQueue>(provider => provider.GetRequiredService<TargetReconciliationQueue>());
+        services.AddHostedService(provider => provider.GetRequiredService<TargetReconciliationQueue>());
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer();
@@ -92,7 +106,8 @@ internal sealed class Startup : IAsyncStartupScript
         services.AddTransactionManagement<BackupGatewayDbContext>(transactionOptions => transactionOptions
             .UseIsolationLevel(IsolationLevel.ReadCommitted));
 
-        services.AddControllers();
+        services.AddControllers().AddJsonOptions(options =>
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.AddHealthChecks();
 
         return ValueTask.CompletedTask;

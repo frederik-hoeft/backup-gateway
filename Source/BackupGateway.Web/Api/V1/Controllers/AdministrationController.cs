@@ -2,6 +2,7 @@ using BackupGateway.Web.Api.V1.Models.Administration;
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Auth;
+using BackupGateway.Web.Services.Leases;
 using BackupGateway.Web.Services.Targets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +20,7 @@ public sealed class AdministrationController(
     UserManager<IdentityUser<Guid>> userManager,
     ServiceCredentialGenerator credentialGenerator,
     ITargetCatalog targetCatalog,
+    LeaseService leaseService,
     ITransactionServiceHandle transactionService)
     : DatabaseController<BackupGatewayDbContext>(transactionService)
 {
@@ -151,6 +153,21 @@ public sealed class AdministrationController(
         await dbContext.SaveChangesAsync(ct);
         return transaction.Commit(NoContent());
     }, cancellationToken);
+
+    [HttpPost("targets/{targetId}/leases/{leaseId:guid}/force-release")]
+    public async Task<IActionResult> ForceReleaseLeaseAsync(
+        [FromRoute] string targetId,
+        [FromRoute] Guid leaseId,
+        CancellationToken cancellationToken)
+    {
+        if (!ClientIdentity.TryGetId(User, out Guid administratorId))
+        {
+            return Unauthorized();
+        }
+
+        LeaseReleaseResult result = await leaseService.ForceReleaseAsync(administratorId, targetId, leaseId, cancellationToken);
+        return result.IsNotFound ? NotFound() : NoContent();
+    }
 
     [HttpDelete("clients/{clientId:guid}/grants/{targetId}")]
     public Task<IActionResult> RevokeTargetAsync(
