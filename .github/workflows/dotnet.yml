@@ -21,8 +21,8 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore Source/BackupGateway.slnx
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore Source/BackupGateway.slnx
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal Source/BackupGateway.slnx
