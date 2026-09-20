@@ -1,4 +1,4 @@
-using BackupGateway.Web.Services.Targets;
+﻿using BackupGateway.Web.Services.Targets;
 using System.Net;
 using System.Net.Sockets;
 
@@ -24,7 +24,7 @@ internal sealed class WakeOnLanTransport : IWakeOnLanTransport
             throw new ArgumentException("Wake-on-LAN requires a six-byte MAC address.", nameof(macAddress));
         }
 
-        byte[] packet = new byte[6 + 16 * macAddress.Length];
+        byte[] packet = new byte[6 + (16 * macAddress.Length)];
         packet.AsSpan(0, 6).Fill(0xff);
         for (int offset = 6; offset < packet.Length; offset += macAddress.Length)
         {

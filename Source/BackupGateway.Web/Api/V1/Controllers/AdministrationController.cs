@@ -1,4 +1,4 @@
-using BackupGateway.Web.Api.V1.Models.Administration;
+﻿using BackupGateway.Web.Api.V1.Models.Administration;
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Auth;
@@ -17,19 +17,19 @@ namespace BackupGateway.Web.Api.V1.Controllers;
 [ApiController]
 [Route("api/v1/admin")]
 [Authorize(Policy = AuthPolicies.ADMINISTRATOR)]
-public sealed class AdministrationController(
+public sealed class AdministrationController
+(
     UserManager<IdentityUser<Guid>> userManager,
     ServiceCredentialGenerator credentialGenerator,
     ITargetCatalog targetCatalog,
     LeaseService leaseService,
     IAuditEventFactory auditEventFactory,
-    ITransactionServiceHandle transactionService)
-    : DatabaseController<BackupGatewayDbContext>(transactionService)
+    ITransactionServiceHandle transactionService
+) : DatabaseController<BackupGatewayDbContext>(transactionService)
 {
     [HttpPost("clients")]
-    public Task<IActionResult> CreateClientAsync(
-        [FromBody] CreateClientRequest request,
-        CancellationToken cancellationToken) => Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
+    public Task<IActionResult> CreateClientAsync([FromBody] CreateClientRequest request, CancellationToken cancellationToken) =>
+        Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
     {
         if (!ClientIdentity.TryGetId(User, out Guid administratorId))
         {
@@ -58,10 +58,7 @@ public sealed class AdministrationController(
             return transaction.Rollback(StatusCode(StatusCodes.Status500InternalServerError));
         }
 
-        dbContext.Add(CreateAuditEvent(
-            administratorId,
-            client.Id,
-            "security.client-created"));
+        dbContext.Add(CreateAuditEvent(administratorId, client.Id, "security.client-created"));
         await dbContext.SaveChangesAsync(ct);
 
         ClientCredentialResponse response = new(client.Id, client.UserName!, credential);
@@ -69,9 +66,8 @@ public sealed class AdministrationController(
     }, cancellationToken);
 
     [HttpPost("clients/{clientId:guid}/credential")]
-    public Task<IActionResult> RotateClientCredentialAsync(
-        [FromRoute] Guid clientId,
-        CancellationToken cancellationToken) => Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
+    public Task<IActionResult> RotateClientCredentialAsync([FromRoute] Guid clientId, CancellationToken cancellationToken) =>
+        Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
     {
         if (!ClientIdentity.TryGetId(User, out Guid administratorId))
         {
@@ -108,10 +104,7 @@ public sealed class AdministrationController(
         await userManager.ResetAccessFailedCountAsync(client);
         await userManager.SetLockoutEndDateAsync(client, null);
 
-        dbContext.Add(CreateAuditEvent(
-            administratorId,
-            client.Id,
-            "security.client-credential-rotated"));
+        dbContext.Add(CreateAuditEvent(administratorId, client.Id, "security.client-credential-rotated"));
         await dbContext.SaveChangesAsync(ct);
 
         ClientCredentialResponse response = new(client.Id, client.UserName!, credential);
@@ -119,10 +112,8 @@ public sealed class AdministrationController(
     }, cancellationToken);
 
     [HttpPut("clients/{clientId:guid}/grants/{targetId}")]
-    public Task<IActionResult> GrantTargetAsync(
-        [FromRoute] Guid clientId,
-        [FromRoute] string targetId,
-        CancellationToken cancellationToken) => Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
+    public Task<IActionResult> GrantTargetAsync([FromRoute] Guid clientId, [FromRoute] string targetId, CancellationToken cancellationToken) =>
+        Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
     {
         if (!ClientIdentity.TryGetId(User, out Guid administratorId))
         {
@@ -147,20 +138,13 @@ public sealed class AdministrationController(
         }
 
         dbContext.Add(new TargetGrant { ClientId = clientId, TargetId = targetId });
-        dbContext.Add(CreateAuditEvent(
-            administratorId,
-            clientId,
-            "security.target-granted",
-            targetId));
+        dbContext.Add(CreateAuditEvent(administratorId, clientId, "security.target-granted", targetId));
         await dbContext.SaveChangesAsync(ct);
         return transaction.Commit(NoContent());
     }, cancellationToken);
 
     [HttpPost("targets/{targetId}/leases/{leaseId:guid}/force-release")]
-    public async Task<IActionResult> ForceReleaseLeaseAsync(
-        [FromRoute] string targetId,
-        [FromRoute] Guid leaseId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> ForceReleaseLeaseAsync([FromRoute] string targetId, [FromRoute] Guid leaseId, CancellationToken cancellationToken)
     {
         if (!ClientIdentity.TryGetId(User, out Guid administratorId))
         {
@@ -172,10 +156,8 @@ public sealed class AdministrationController(
     }
 
     [HttpDelete("clients/{clientId:guid}/grants/{targetId}")]
-    public Task<IActionResult> RevokeTargetAsync(
-        [FromRoute] Guid clientId,
-        [FromRoute] string targetId,
-        CancellationToken cancellationToken) => Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
+    public Task<IActionResult> RevokeTargetAsync([FromRoute] Guid clientId, [FromRoute] string targetId, CancellationToken cancellationToken) =>
+        Transaction.Scoped.RunAsync<IActionResult>(async (dbContext, transaction, ct) =>
     {
         if (!ClientIdentity.TryGetId(User, out Guid administratorId))
         {
@@ -194,24 +176,11 @@ public sealed class AdministrationController(
         }
 
         dbContext.Remove(grant);
-        dbContext.Add(CreateAuditEvent(
-            administratorId,
-            clientId,
-            "security.target-revoked",
-            targetId));
+        dbContext.Add(CreateAuditEvent(administratorId, clientId, "security.target-revoked", targetId));
         await dbContext.SaveChangesAsync(ct);
         return transaction.Commit(NoContent());
     }, cancellationToken);
 
-    private AuditEvent CreateAuditEvent(
-        Guid administratorId,
-        Guid subjectClientId,
-        string eventType,
-        string? targetId = null) => auditEventFactory.Create(
-            eventType,
-            "success",
-            actorClientId: administratorId,
-            subjectClientId: subjectClientId,
-            targetId: targetId);
-
+    private AuditEvent CreateAuditEvent(Guid administratorId, Guid subjectClientId, string eventType, string? targetId = null) =>
+        auditEventFactory.Create(eventType, "success", actorClientId: administratorId, subjectClientId: subjectClientId, targetId: targetId);
 }

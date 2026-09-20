@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "BackupGateway.Web": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:2537;http://localhost:2538"
+    }
+  }
+}

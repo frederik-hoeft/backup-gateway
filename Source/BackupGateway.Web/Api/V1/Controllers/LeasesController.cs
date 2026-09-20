@@ -1,4 +1,4 @@
-using BackupGateway.Web.Api.V1.Models.Leases;
+﻿using BackupGateway.Web.Api.V1.Models.Leases;
 using BackupGateway.Web.Services.Auth;
 using BackupGateway.Web.Services.Leases;
 using Microsoft.AspNetCore.Authorization;
@@ -12,10 +12,7 @@ namespace BackupGateway.Web.Api.V1.Controllers;
 public sealed class LeasesController(LeaseService leaseService) : ControllerBase
 {
     [HttpPut("{leaseId:guid}")]
-    public async Task<IActionResult> AcquireAsync(
-        [FromRoute] string targetId,
-        [FromRoute] Guid leaseId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> AcquireAsync([FromRoute] string targetId, [FromRoute] Guid leaseId, CancellationToken cancellationToken)
     {
         if (!ClientIdentity.TryGetId(User, out Guid clientId))
         {
@@ -35,10 +32,7 @@ public sealed class LeasesController(LeaseService leaseService) : ControllerBase
     }
 
     [HttpGet("{leaseId:guid}")]
-    public async Task<ActionResult<LeaseResponse>> GetAsync(
-        [FromRoute] string targetId,
-        [FromRoute] Guid leaseId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<LeaseResponse>> GetAsync([FromRoute] string targetId, [FromRoute] Guid leaseId, CancellationToken cancellationToken)
     {
         if (!ClientIdentity.TryGetId(User, out Guid clientId))
         {
@@ -50,10 +44,7 @@ public sealed class LeasesController(LeaseService leaseService) : ControllerBase
     }
 
     [HttpPost("{leaseId:guid}/heartbeat")]
-    public async Task<IActionResult> HeartbeatAsync(
-        [FromRoute] string targetId,
-        [FromRoute] Guid leaseId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> HeartbeatAsync([FromRoute] string targetId, [FromRoute] Guid leaseId, CancellationToken cancellationToken)
     {
         if (!ClientIdentity.TryGetId(User, out Guid clientId))
         {
@@ -73,10 +64,7 @@ public sealed class LeasesController(LeaseService leaseService) : ControllerBase
     }
 
     [HttpDelete("{leaseId:guid}")]
-    public async Task<IActionResult> ReleaseAsync(
-        [FromRoute] string targetId,
-        [FromRoute] Guid leaseId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> ReleaseAsync([FromRoute] string targetId, [FromRoute] Guid leaseId, CancellationToken cancellationToken)
     {
         if (!ClientIdentity.TryGetId(User, out Guid clientId))
         {
@@ -87,7 +75,8 @@ public sealed class LeasesController(LeaseService leaseService) : ControllerBase
         return result.IsNotFound ? NotFound() : NoContent();
     }
 
-    private LeaseResponse CreateResponse(LeaseSnapshot lease) => new(
+    private LeaseResponse CreateResponse(LeaseSnapshot lease) => new
+    (
         lease.Id,
         lease.TargetId,
         lease.State,
@@ -96,5 +85,6 @@ public sealed class LeasesController(LeaseService leaseService) : ControllerBase
         lease.ReleasedAtUtc,
         leaseService.IsStale(lease),
         lease.TargetState,
-        lease.TargetObservedAtUtc);
+        lease.TargetObservedAtUtc
+    );
 }

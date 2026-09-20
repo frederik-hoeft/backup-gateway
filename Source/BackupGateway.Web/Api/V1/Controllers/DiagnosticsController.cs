@@ -1,4 +1,4 @@
-using BackupGateway.Web.Api.V1.Models.Diagnostics;
+﻿using BackupGateway.Web.Api.V1.Models.Diagnostics;
 using BackupGateway.Web.Data;
 using BackupGateway.Web.Data.Model;
 using BackupGateway.Web.Services.Auth;
@@ -14,14 +14,16 @@ namespace BackupGateway.Web.Api.V1.Controllers;
 [ApiController]
 [Route("api/v1/admin/diagnostics")]
 [Authorize(Policy = AuthPolicies.ADMINISTRATOR)]
-public sealed class DiagnosticsController(
+public sealed class DiagnosticsController
+(
     ITransactionService<BackupGatewayDbContext> transactionService,
     ITargetCatalog targetCatalog,
     LeaseOptions leaseOptions,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider
+) : ControllerBase
 {
-    private const int MaximumLeaseDetails = 100;
-    private const int MaximumAuditEvents = 100;
+    private const int MAXIMUM_LEASE_DETAILS = 100;
+    private const int MAXIMUM_AUDIT_EVENTS = 100;
 
     [HttpGet("targets/{targetId}")]
     public Task<IActionResult> GetTargetAsync([FromRoute] string targetId, CancellationToken cancellationToken)
@@ -44,7 +46,7 @@ public sealed class DiagnosticsController(
 
             DateTimeOffset now = timeProvider.GetUtcNow();
             IReadOnlyList<HeldLeaseDiagnostic> leaseDetails = [.. leases
-                .Take(MaximumLeaseDetails)
+                .Take(MAXIMUM_LEASE_DETAILS)
                 .Select(lease => new HeldLeaseDiagnostic(
                     lease.Id,
                     lease.ClientId,
@@ -56,19 +58,16 @@ public sealed class DiagnosticsController(
                 observation?.ObservedAtUtc,
                 leases.Count,
                 leases.Count(lease => now - lease.LastHeartbeatAtUtc > leaseOptions.StaleAfter),
-                leases.Count > MaximumLeaseDetails,
+                leases.Count > MAXIMUM_LEASE_DETAILS,
                 leaseDetails);
             return Ok(response);
         }, cancellationToken);
     }
 
     [HttpGet("audit")]
-    public Task<IActionResult> GetAuditAsync(
-        [FromQuery] string? targetId,
-        [FromQuery] int limit = 50,
-        CancellationToken cancellationToken = default)
+    public Task<IActionResult> GetAuditAsync([FromQuery] string? targetId, [FromQuery] int limit = 50, CancellationToken cancellationToken = default)
     {
-        if (limit is < 1 or > MaximumAuditEvents || targetId is { Length: > 128 })
+        if (limit is < 1 or > MAXIMUM_AUDIT_EVENTS || targetId is { Length: > 128 })
         {
             return Task.FromResult<IActionResult>(BadRequest());
         }
@@ -84,7 +83,8 @@ public sealed class DiagnosticsController(
             List<AuditEventResponse> events = await query
                 .OrderByDescending(auditEvent => auditEvent.OccurredAtUtc)
                 .Take(limit)
-                .Select(auditEvent => new AuditEventResponse(
+                .Select(auditEvent => new AuditEventResponse
+                (
                     auditEvent.Id,
                     auditEvent.OccurredAtUtc,
                     auditEvent.CorrelationId,
@@ -94,7 +94,8 @@ public sealed class DiagnosticsController(
                     auditEvent.LeaseId,
                     auditEvent.EventType,
                     auditEvent.Outcome,
-                    auditEvent.Details))
+                    auditEvent.Details
+                ))
                 .ToListAsync(ct);
             return Ok(events);
         }, cancellationToken);
